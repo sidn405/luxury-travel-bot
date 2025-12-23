@@ -1,0 +1,45 @@
+# Query: download_url
+# ContextLines: 1
+
+14 results - 2 files
+
+Luxury_Travel_Bot.py:
+  704                                              "type": "info",
+  705:                                             "actionLink": public_url  # Include the actual download URL
+  706                                          }
+
+  710                          ],
+  711:                         "sessionInfo": {"parameters": {"download_url": public_url}}
+  712                      }
+
+  812                      if upload_response:
+  813:                         download_url = make_gcs_object_public(upload_response['bucket'], upload_response['name'])
+  814  
+  815                          # Log the generated download URL
+  816:                         logger.info(f"Generated download URL for Getaways: {public_url}")
+  817  
+
+  821                                  {"text": {"text": ["Great! Here's your custom getaway."]}},
+  822:                                 {"payload": {"richContent": [{"title": "Your Getaway", "subtitle": "Click below to download.", "actionLink": public_url, "type": "info"}]}},
+  823                                  {"text": {"text": ["Is there anything else I can help you with today?"]}}
+  824                              ],
+  825:                             "sessionInfo": {"parameters": {"download_url": public_url}}
+  826                          })
+
+test-downloadpdf.py:
+  21  
+  22:         download_url = f"https://storage.googleapis.com/storage/v1/b/{bucket_name}/o/{blob_name}?alt=media"
+  23          headers = {"Authorization": f"Bearer {access_token}"}
+  24  
+  25:         response = requests.get(public_url, headers=headers)
+  26          if response.status_code == 200:
+
+  29              print(f"File successfully downloaded to: {destination_file_path}")
+  30:             return public_url
+  31          else:
+
+  42  # Call the function to generate the download URL and save the file
+  43: download_url = generate_download_json_api(bucket_name, blob_name, "/tmp/5 day Altanta getaway.pdf")
+  44: if download_url:
+  45:     print(f"Download URL: {public_url}")
+  46  else:

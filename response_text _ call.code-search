@@ -1,0 +1,45 @@
+# Query: response_text = call
+# ContextLines: 1
+
+7 results - 3 files
+
+Luxury_Travel_Bot.ipynb:
+  390:                 response_text = call_openai(user_query, affiliate_links, parameters)
+
+
+
+
+
+
+
+
+  390                  prompt = f"Creating a itinerary using: {', '.join(destination)}. Number of days: {number_of_days}. Family size: {family_size}. Budget: {budget}. The itinerary should be eco-friendly and luxurious."
+
+  392  
+  449:                 response_text = call_openai(user_query, affiliate_links, parameters)
+  449                  )
+  451  
+
+~/Meal_Planner_Chatbot.py:
+  362                  prompt = f"Creating a recipe using: {', '.join(ingredients_preference)}. Cuisine preference: {cuisine_preference}. Skill level: {skill_level}. Estimated cooking time: {cooking_time}."
+  363:                 response_text = call_openai_or_data_store(prompt, ingredients_preference)
+  364  
+
+  404                            f"eats {meal_frequency} meals a day, and has a budget of {budget_considerations}.")
+  405:                 response_text = call_openai(prompt)
+  406                  
+
+  438                            f"Make sure the list fits a {dietary_restrictions} diet, serves {portion_sizes}.")
+  439:                 response_text = call_openai(prompt)
+  440  
+
+~/luxury_travel_bot/Luxury_Travel_Bot.py:
+  1669                  # Validate response_text
+  1670:                 response_text = call_openai(user_query, affiliate_links, parameters)
+
+  1671                  if not response_text:
+
+  1787  
+  1788:                 response_text = call_openai(user_query, affiliate_links, parameters)
+
+  1789                  story = []

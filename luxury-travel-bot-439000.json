@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "luxury-travel-bot-439000",
+  "private_key_id": "fb40a00bc5d0e7762f81c0d76157557b258e8055",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC6rQx5ibL3Fk/W\nOrS0hG6Ehrc/QAbB+0VNkpxac5kVuy+r6ahx2Nnmgj8nPzGHfiB4pRBb1jwjthJ6\nXf4rYsu7FlvRm4W7mVjWav56wkwsDtoFmPHzO5XStoFelz7o3uy1gK7Cy8CAxZMo\n+5e9KjcHfxSla+xgWom+YG/hP51+KvoyV1sNFjFsozFKM7Q3v0QlpurAO+1BCqyk\nt+Zuaqdfg4RESMH6MBJduc6zO4v3acKgAysJc5YPo4A1Kl0Ctk6cfBbSgCE8DGQJ\nTAgcFBqrpVfZaFaLOR6xYDUT/htZylz4ADy4RIJQFjy3DWpPfbX/bO90a2uTwBcY\nY45AqCJJAgMBAAECggEAWMoBQnejx1F19MPkem348RDwbOWjsTU17+EZfA46lHL9\niCuxYkEN101BA4ZTpQnxIOEF6GB8J1Is9MXrJDCwDVLjpk1uLN4Rup6WXsY2m8gO\nnBX0ksfXCauj2d1fXzzU4rmLpfxqmfUfeyE7uY4wMWEY7VtpSSUXGhVdcYoj+0Ne\nyo38jkAh0qYSTJwyAzrNaCDlnHpOOaJyvzb3fvYOO9/3PZWpTZjHfRqo+4cETv7A\nbJeY31KLmAp9Mt3IVjgqmtkAazE5GAge5+fVQeQ/w8Z9y7o/eZYJYjwsF0jMfAHj\nCYAjBOEqhKS7pRXyo3+3yRV8g1kKdiTAqG8h8eADBwKBgQDgOZ69EJNaCuqrgDxZ\nO0+iEY22UMuI7Yv/BM4vMfu7y1N0zBmN1Ef4ycrDmQ6vsDr888uhD5+i0Z5j+Wso\ntpU/mqRs1MiHAUnW8ZH6iW4LA0RzyHvD7UqiT4qHtEhxsALxmbo15Ij7EZCUbI4S\nyhBQ58VkzzRcld1g6vRqjdxptwKBgQDVITtWL31NIt7SmJeJo3dPkRinEXd5P5HP\nfgFe2jKOSLEFvLHonDvJMY/Iy8kixnHzvzI3rHYmed5rKomYPKLPuHYyzb790WHH\nM3A2QJRudLb+4Oiat0efNKHEQjs10UMjYaGOZ7fvpQ4CYpJuJ9h4BSDughn91Haj\nn6URlM/T/wKBgDZa4Xc1oHLQeKjQclCzRw+jr7XFikGMTEaq1IyuUjbpCDclDwDJ\nuBTAXi3iWaQPVY1iUDegAPPIWtwjZ228LRv5EejsABxyHINFljykug9jYGGs9Qu+\n5zvHim5xLqqYn24P9QsBdo9eZ60DT8GQSDpEpR5V+HyFO+A1tMBr2UWrAoGBAL05\nVf89BpiXnxGHHPO8yE9CWYrrPRHPWNvJ2dmnDD+7Vj/rumD1ZTdJ44i5NYjEe6OX\nWzSG0Bd1F/45tBQPsdWOxpJwjWO4pIFBsBza1W4D/fzpHltO4i39gqpGy18KvfsJ\n0XAnsez4tCl17uASTGSy2PwpUn5ERlkbgmjLoIFtAoGBAIZYavagCzIozc3etFzz\nIy7LdJ34DJT1xD7nuUsYIbxWMCTJRAQyW5rVhwB3NeeiwwZKsBaCD8HQdjQEII+I\nBF0p/tcQ8vknDY8i2k45NlvvhtTYmhGd/1kTCHgkePxgLfFI4jvp8brECJ0wocVd\ndFcu614fRdJuyxcTmU3Sw13D\n-----END PRIVATE KEY-----\n",
+  "client_email": "sidneym@luxury-travel-bot-439000.iam.gserviceaccount.com",
+  "client_id": "117018787628266232705",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sidneym%40luxury-travel-bot-439000.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

@@ -1,0 +1,52 @@
+# Luxury Travel Bot - Local Run Script (PowerShell)
+# Run this to start the bot locally: .\run.ps1
+
+Write-Host "======================================" -ForegroundColor Cyan
+Write-Host "Luxury Travel Bot - Starting..." -ForegroundColor Cyan
+Write-Host "======================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Check if virtual environment exists
+if (-not (Test-Path "venv")) {
+    Write-Host "Error: Virtual environment not found!" -ForegroundColor Red
+    Write-Host "Please run setup.ps1 first" -ForegroundColor Yellow
+    exit 1
+}
+
+# Activate virtual environment
+& "venv\Scripts\Activate.ps1"
+Write-Host "✓ Virtual environment activated" -ForegroundColor Green
+
+# Check if .env file exists
+if (-not (Test-Path ".env")) {
+    Write-Host "Warning: .env file not found!" -ForegroundColor Yellow
+    Write-Host "Creating .env from template..." -ForegroundColor Yellow
+    Copy-Item .env.example .env
+    Write-Host ""
+    Write-Host "Please edit .env and add your OPENAI_API_KEY" -ForegroundColor Yellow
+    Write-Host "Then run this script again" -ForegroundColor Yellow
+    notepad .env
+    exit 1
+}
+
+# Load environment variables from .env
+Get-Content .env | ForEach-Object {
+    if ($_ -match '^\s*([^#][^=]+)\s*=\s*(.+)\s*$') {
+        $name = $matches[1].Trim()
+        $value = $matches[2].Trim()
+        Set-Item -Path "env:$name" -Value $value
+    }
+}
+
+# Set default PORT if not set
+if (-not $env:PORT) {
+    $env:PORT = "8080"
+}
+
+Write-Host ""
+Write-Host "Starting bot on http://localhost:$env:PORT" -ForegroundColor Green
+Write-Host "Press Ctrl+C to stop" -ForegroundColor Yellow
+Write-Host ""
+
+# Run the bot with Python directly
+python Luxury_Travel_Bot.py

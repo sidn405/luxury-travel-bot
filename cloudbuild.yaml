@@ -1,0 +1,10 @@
+steps:
+  - name: 'python:3.10'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt
+        gunicorn -b :8080 Luxury_Travel_Bot:app

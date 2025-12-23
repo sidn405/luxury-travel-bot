@@ -1,0 +1,16 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: luxury-travel-bot-web
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    spec:
+      containers:
+      - image: gcr.io/luxury-travel-bot-439000/luxury-travel-bot-2:20251105-035616
+        ports:
+        - containerPort: 8080
+        env:
+        - name: ENV
+          value: production
