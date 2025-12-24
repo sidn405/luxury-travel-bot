@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Eco Friendly Luxury Travels - AI Travel Assistant
-Version 2.3.3 - Getaway improvements: better titles, affiliate links, clickable links
+Version 2.3.4 - Hotel-based affiliate links with random selection
 """
 
 import datetime
@@ -39,7 +39,7 @@ app = Flask(__name__,
             static_url_path='/static')
 Compress(app)
 
-APP_VERSION = "2.3.3-Getaway-Fix"
+APP_VERSION = "2.3.4-Hotel-Affiliates"
 
 # Storage
 STORAGE_DIR = os.getenv("STORAGE_DIR", "/tmp/travel-pdfs")
@@ -888,35 +888,31 @@ BANNER_ADS = [
 
 
 
-def load_local_image(file_path):
-    """Load image from local file for PDF."""
-    try:
-        if os.path.exists(file_path):
-            with open(file_path, 'rb') as f:
-                return f.read()
-        else:
-            logger.warning(f"Image file not found: {file_path}")
-            return None
-    except Exception as e:
-        logger.error(f"Error loading image from {file_path}: {e}")
-        return None
+
+def get_all_destinations():
+    """Extract all unique destinations from affiliate_links."""
+    destinations = set()
+    for region, hotels in affiliate_links["getaways"].items():
+        for hotel in hotels:
+            destinations.add(hotel["destination"])
+    return list(destinations)
 
 
-def clean_text_for_pdf(text):
-    """Clean and escape text for safe PDF generation."""
-    if not text:
-        return ""
+def get_hotel_for_destination(destination):
+    """Randomly select a hotel for a given destination."""
+    import random
+    matching_hotels = []
     
-    # Escape HTML special characters
-    text = text.replace('&', '&amp;')
-    text = text.replace('<', '&lt;')
-    text = text.replace('>', '&gt;')
+    for region, hotels in affiliate_links["getaways"].items():
+        for hotel in hotels:
+            if hotel["destination"].lower() == destination.lower() or \
+               destination.lower() in hotel["destination"].lower() or \
+               hotel["destination"].lower() in destination.lower():
+                matching_hotels.append(hotel)
     
-    # Now convert markdown bold to HTML (after escaping)
-    # This prevents issues with < > in user text
-    text = re.sub(r'\*\*([^*]+)\*\*', r'<b>\1</b>', text)
-    
-    return text.strip()
+    if matching_hotels:
+        return random.choice(matching_hotels)
+    return None
 
 
 def load_local_image(file_path):
@@ -1099,8 +1095,8 @@ def generate_getaway(parameters):
         activity_str = ', '.join(activities) if activities and isinstance(activities, list) else "various activities"
         
         # Build list of affiliate destinations to prioritize
-        affiliate_destinations = list(affiliate_links.keys())
-        affiliate_str = ', '.join(affiliate_destinations)
+        affiliate_destinations = get_all_destinations()
+        affiliate_str = ', '.join(sorted(set(affiliate_destinations)))
         
         prompt = f"""Suggest 3 eco-friendly luxury getaways for Eco Friendly Luxury Travels:
 
@@ -1116,13 +1112,13 @@ Travelers: {travelers} people"""
         
         prompt += f"""
 
-IMPORTANT: Select destinations ONLY from this list (we have affiliate partnerships):
+IMPORTANT: Select destinations ONLY from this list (we have affiliate hotel partnerships):
 {affiliate_str}
 
 Match destinations to the requested activities and preferences. For example:
-- Skiing/snowboarding → Aspen, Vail, Whistler, St. Moritz
-- Beach/tropical → Maldives, Bali, Hawaii, Thailand
-- Culture/city → Paris, Rome, London, Dubai
+- Skiing/snowboarding → St. Moritz, Aspen, Vail, Whistler
+- Beach/tropical → Bali
+- Culture/city → Geneva
 
 For each destination:
 **Option X: [Destination Name] - [Catchy Title]**
@@ -1282,7 +1278,7 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
                         story.append(Paragraph(line_clean, normal_style))
                     story.append(Spacer(1, 0.08 * inch))
         
-        # Booking links section
+        # Booking Links section
         story.append(Spacer(1, 0.3 * inch))
         story.append(Paragraph("<b>Booking Links:</b>", section_title_style))
         story.append(Spacer(1, 0.1 * inch))
@@ -1290,9 +1286,12 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
         # For getaways, extract destinations from content
         if doc_type == "getaway":
             # Find destinations mentioned in content that match our affiliate links
+            all_destinations = get_all_destinations()
             destinations_found = []
-            for dest in affiliate_links.keys():
-                if dest in content:
+            
+            for dest in all_destinations:
+                # Check if destination is mentioned in content (case-insensitive)
+                if dest.lower() in content.lower():
                     destinations_found.append(dest)
             
             # Use found destinations, fallback to parameters if none found
@@ -1304,7 +1303,7 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
             # For itineraries, use parameter destinations
             destinations_to_link = parameters['destination']
         
-        # Add clickable links with color
+        # Add clickable links with hotel names and color
         link_style = ParagraphStyle(
             name='BookingLink',
             fontName='Helvetica-Bold',
@@ -1314,8 +1313,14 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
         )
         
         for dest in destinations_to_link:
-            if dest in affiliate_links:
-                link = f'<a href="{affiliate_links[dest]}" color="blue"><u>{dest} - Book Now →</u></a>'
+            # Get a random hotel for this destination
+            hotel_info = get_hotel_for_destination(dest)
+            if hotel_info:
+                hotel_name = hotel_info['hotel']
+                link_url = hotel_info['link']
+                
+                # Create link with hotel name
+                link = f'<a href="{link_url}" color="blue"><u>{dest} - {hotel_name} →</u></a>'
                 story.append(Paragraph(link, link_style))
                 story.append(Spacer(1, 0.08 * inch))
         
