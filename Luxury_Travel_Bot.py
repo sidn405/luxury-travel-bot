@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Eco Friendly Luxury Travels - AI Travel Assistant
-Version 2.3.1 - Intent fix + parameter validation
+Version 2.3.2 - PDF generation fix for markdown formatting
 """
 
 import datetime
@@ -39,7 +39,7 @@ app = Flask(__name__,
             static_url_path='/static')
 Compress(app)
 
-APP_VERSION = "2.3.1-Intent-Fix"
+APP_VERSION = "2.3.2-PDF-Fix"
 
 # Storage
 STORAGE_DIR = os.getenv("STORAGE_DIR", "/tmp/travel-pdfs")
@@ -887,6 +887,7 @@ BANNER_ADS = [
 ]
 
 
+
 def load_local_image(file_path):
     """Load image from local file for PDF."""
     try:
@@ -899,6 +900,23 @@ def load_local_image(file_path):
     except Exception as e:
         logger.error(f"Error loading image from {file_path}: {e}")
         return None
+
+
+def clean_text_for_pdf(text):
+    """Clean and escape text for safe PDF generation."""
+    if not text:
+        return ""
+    
+    # Escape HTML special characters
+    text = text.replace('&', '&amp;')
+    text = text.replace('<', '&lt;')
+    text = text.replace('>', '&gt;')
+    
+    # Now convert markdown bold to HTML (after escaping)
+    # This prevents issues with < > in user text
+    text = re.sub(r'\*\*([^*]+)\*\*', r'<b>\1</b>', text)
+    
+    return text.strip()
 
 
 def extract_parameters(user_message):
@@ -1157,14 +1175,16 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
                     # Add text
                     for line in section.split('\n'):
                         if line.strip():
-                            # Make headers bold
-                            if line.startswith('**') or line.startswith('Option'):
-                                line = line.replace('**', '<b>').replace('**', '</b>')
-                                if not '<b>' in line:
-                                    line = f'<b>{line}</b>'
-                                story.append(Paragraph(line, section_title_style))
+                            # Clean text safely for PDF
+                            line_clean = clean_text_for_pdf(line)
+                            
+                            # If line starts with Option, make it bold
+                            if line.strip().startswith('Option'):
+                                if '<b>' not in line_clean:
+                                    line_clean = f'<b>{line_clean}</b>'
+                                story.append(Paragraph(line_clean, section_title_style))
                             else:
-                                story.append(Paragraph(line, normal_style))
+                                story.append(Paragraph(line_clean, normal_style))
                             story.append(Spacer(1, 0.08 * inch))
                     
                     # Add banner after each option (3 total for getaways)
@@ -1188,11 +1208,17 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
             # Itinerary - regular content
             for line in content.split('\n'):
                 if line.strip():
-                    line = line.replace('**', '<b>').replace('**', '</b>')
-                    if line.startswith('<b>Day '):
-                        story.append(Paragraph(line, section_title_style))
+                    # Clean text safely for PDF
+                    line_clean = clean_text_for_pdf(line)
+                    
+                    # Check if it's a day header
+                    original_line = line.strip()
+                    if original_line.startswith('Day ') or original_line.startswith('**Day '):
+                        if '<b>' not in line_clean:
+                            line_clean = f'<b>{line_clean}</b>'
+                        story.append(Paragraph(line_clean, section_title_style))
                     else:
-                        story.append(Paragraph(line, normal_style))
+                        story.append(Paragraph(line_clean, normal_style))
                     story.append(Spacer(1, 0.08 * inch))
         
         # Booking links section
