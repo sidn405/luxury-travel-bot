@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Eco Friendly Luxury Travels - AI Travel Assistant
-Version 2.3.0 - Local banner and logo integration
+Version 2.3.1 - Intent fix + parameter validation
 """
 
 import datetime
@@ -39,7 +39,7 @@ app = Flask(__name__,
             static_url_path='/static')
 Compress(app)
 
-APP_VERSION = "2.3.0-Local-Assets"
+APP_VERSION = "2.3.1-Intent-Fix"
 
 # Storage
 STORAGE_DIR = os.getenv("STORAGE_DIR", "/tmp/travel-pdfs")
@@ -887,91 +887,6 @@ BANNER_ADS = [
 ]
 
 
-def download_image(url):
-    """Download image from URL for PDF."""
-    try:
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            return response.content
-        return None
-    except Exception as e:
-        logger.error(f"Error downloading image from {url}: {e}")
-        return None
-
-
-def extract_parameters(user_message):
-    """Extract structured parameters from message."""
-    try:
-        prompt = f"""Extract travel parameters from: "{user_message}"
-
-Return JSON with these fields (null if not mentioned):
-{{
-  "destination": ["string"],
-  "number_of_days": number,
-  "budget": "string",
-  "preferred_activities": ["string"],
-  "family_size": number,
-  "ages": [number],
-  "travel_dates": "string",
-  "climate_preferences": "string",
-  "geography_scenery": "string"
-}}
-
-Example: "7-day Paris trip for 2, $5000" → {{"destination":["Paris"],"number_of_days":7,"family_size":2,"budget":"$5000","preferred_activities":null,"ages":null,"travel_dates":null,"climate_preferences":null,"geography_scenery":null}}"""
-
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers=headers,
-            json={
-                "model": "gpt-4",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 500,
-                "temperature": 0.3,
-            },
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            content = response.json()["choices"][0]["message"]["content"]
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                params = json.loads(json_match.group())
-                return normalize_parameters(params)
-        
-        return get_default_parameters()
-    except Exception as e:
-        logger.error(f"Error extracting parameters: {e}")
-        return get_default_parameters()
-
-
-def normalize_parameters(params):
-    """Normalize extracted parameters."""
-    if params.get("destination") and not isinstance(params["destination"], list):
-        params["destination"] = [params["destination"]]
-    
-    params.setdefault("number_of_days", 7)
-    params.setdefault("family_size", 2)
-    params.setdefault("budget", "$5000")
-    params.setdefault("destination", ["Paris"])
-    
-    return params
-
-
-def get_default_parameters():
-    """Default parameters."""
-    return {
-        "destination": ["Paris"],
-        "number_of_days": 7,
-        "budget": "$5000",
-        "preferred_activities": None,
-        "family_size": 2,
-        "ages": None,
-        "travel_dates": None,
-        "climate_preferences": None,
-        "geography_scenery": None
-    }
-
-
 def load_local_image(file_path):
     """Load image from local file for PDF."""
     try:
@@ -993,18 +908,25 @@ def extract_parameters(user_message):
 
 Return JSON with these fields (null if not mentioned):
 {{
-  "destination": ["string"],
-  "number_of_days": number,
-  "budget": "string",
-  "preferred_activities": ["string"],
-  "family_size": number,
-  "ages": [number],
-  "travel_dates": "string",
-  "climate_preferences": "string",
-  "geography_scenery": "string"
+  "destination": ["string"],          // Extract mentioned destinations, or null if none mentioned
+  "number_of_days": number,           // Extract number of days
+  "budget": "string",                 // Extract budget with currency
+  "preferred_activities": ["string"], // Extract ALL activities (skiing, snowboarding, hiking, etc)
+  "family_size": number,              // Number of people traveling
+  "ages": [number],                   // Ages if mentioned
+  "travel_dates": "string",           // Dates or season (e.g., "winter", "December")
+  "climate_preferences": "string",    // Weather preference (cold, warm, tropical, etc)
+  "geography_scenery": "string"       // Type of scenery (mountains, beach, desert, etc)
 }}
 
-Example: "7-day Paris trip for 2, $5000" → {{"destination":["Paris"],"number_of_days":7,"family_size":2,"budget":"$5000","preferred_activities":null,"ages":null,"travel_dates":null,"climate_preferences":null,"geography_scenery":null}}"""
+Examples:
+"7-day Paris trip for 2, $5000" → 
+{{"destination":["Paris"],"number_of_days":7,"family_size":2,"budget":"$5000","preferred_activities":null,"ages":null,"travel_dates":null,"climate_preferences":null,"geography_scenery":null}}
+
+"Winter ski vacation for family of 4, love snowboarding" →
+{{"destination":null,"number_of_days":null,"family_size":4,"budget":null,"preferred_activities":["skiing","snowboarding"],"ages":null,"travel_dates":"winter","climate_preferences":"cold","geography_scenery":"mountains"}}
+
+Extract ALL activities mentioned, and infer geography from activities (skiing=mountains, beach activities=beach, etc)."""
 
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
@@ -1033,13 +955,20 @@ Example: "7-day Paris trip for 2, $5000" → {{"destination":["Paris"],"number_o
 
 def normalize_parameters(params):
     """Normalize extracted parameters."""
-    if params.get("destination") and not isinstance(params["destination"], list):
-        params["destination"] = [params["destination"]]
+    # Ensure destination is always a list
+    if params.get("destination"):
+        if not isinstance(params["destination"], list):
+            params["destination"] = [params["destination"]]
+        # Filter out None or empty values
+        params["destination"] = [d for d in params["destination"] if d]
+    
+    # Set defaults for missing values
+    if not params.get("destination") or len(params["destination"]) == 0:
+        params["destination"] = ["Paris"]
     
     params.setdefault("number_of_days", 7)
     params.setdefault("family_size", 2)
     params.setdefault("budget", "$5000")
-    params.setdefault("destination", ["Paris"])
     
     return params
 
@@ -1062,7 +991,12 @@ def get_default_parameters():
 def generate_itinerary(parameters):
     """Generate detailed itinerary."""
     try:
-        destinations = ", ".join(parameters["destination"])
+        # Ensure destination is a list and not empty
+        destinations_list = parameters.get("destination", ["Paris"])
+        if not destinations_list or not isinstance(destinations_list, list):
+            destinations_list = ["Paris"]
+        
+        destinations = ", ".join(destinations_list)
         prompt = f"""Create detailed luxury itinerary for Eco Friendly Luxury Travels:
 
 Destination: {destinations}
@@ -1106,21 +1040,36 @@ Be specific with hotel names, restaurant names, and actual prices."""
 def generate_getaway(parameters):
     """Generate getaway recommendations."""
     try:
+        budget = parameters.get('budget', '$3000')
+        activities = parameters.get('preferred_activities', [])
+        climate = parameters.get('climate_preferences')
+        geography = parameters.get('geography_scenery')
+        travelers = parameters.get('family_size', 2)
+        
+        # Build activity string
+        activity_str = ', '.join(activities) if activities and isinstance(activities, list) else "various activities"
+        
         prompt = f"""Suggest 3 eco-friendly luxury getaways for Eco Friendly Luxury Travels:
 
-Budget: {parameters.get('budget', '$3000')}
-Travelers: {parameters.get('family_size', 2)}
-{f"Activities: {', '.join(parameters['preferred_activities'])}" if parameters.get('preferred_activities') else ""}
-{f"Climate: {parameters['climate_preferences']}" if parameters.get('climate_preferences') else ""}
-{f"Scenery: {parameters['geography_scenery']}" if parameters.get('geography_scenery') else ""}
+Budget: {budget}
+Travelers: {travelers} people"""
+        
+        if activities and isinstance(activities, list) and len(activities) > 0:
+            prompt += f"\nActivities: {activity_str}"
+        if climate:
+            prompt += f"\nClimate: {climate}"
+        if geography:
+            prompt += f"\nScenery: {geography}"
+        
+        prompt += """
 
-Focus on: Maldives, Bali, Dubai, Paris, Santorini, Thailand, Hawaii, Rome, London
+Focus on destinations from: Maldives, Bali, Dubai, Paris, Santorini, Thailand, Hawaii, Rome, London, Aspen, Vail, Whistler, St. Moritz
 
 For each destination:
 **Option X: [Destination Name] - [Catchy Title]**
 
 **Destination Description:**
-[Detailed description focusing on eco-friendly aspects]
+[Detailed description focusing on eco-friendly aspects and matching the requested activities]
 
 **Family Activities:** (if family_size > 2)
 [Activities suitable for families]
@@ -1304,13 +1253,14 @@ def chat():
         parameters = extract_parameters(message)
         message_lower = message.lower()
         
-        # Route to appropriate generator
-        if any(w in message_lower for w in ["itinerary", "plan", "trip", "schedule"]):
-            content = generate_itinerary(parameters)
-            doc_type = "itinerary"
-        elif any(w in message_lower for w in ["getaway", "vacation", "escape", "suggest"]):
+        # Route to appropriate generator (prioritize getaway keywords)
+        if any(w in message_lower for w in ["getaway", "vacation", "escape", "weekend"]):
+            # Getaway has priority - more specific intent
             content = generate_getaway(parameters)
             doc_type = "getaway"
+        elif any(w in message_lower for w in ["itinerary", "plan", "trip", "schedule", "day-by-day"]):
+            content = generate_itinerary(parameters)
+            doc_type = "itinerary"
         else:
             return jsonify({
                 "response": "Hi! I'm Dave from Eco Friendly Luxury Travels. I can:\n\n"
