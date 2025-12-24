@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Eco Friendly Luxury Travels - AI Travel Assistant
-Version 2.3.2 - PDF generation fix for markdown formatting
+Version 2.3.3 - Getaway improvements: better titles, affiliate links, clickable links
 """
 
 import datetime
@@ -39,7 +39,7 @@ app = Flask(__name__,
             static_url_path='/static')
 Compress(app)
 
-APP_VERSION = "2.3.2-PDF-Fix"
+APP_VERSION = "2.3.3-Getaway-Fix"
 
 # Storage
 STORAGE_DIR = os.getenv("STORAGE_DIR", "/tmp/travel-pdfs")
@@ -919,6 +919,37 @@ def clean_text_for_pdf(text):
     return text.strip()
 
 
+def load_local_image(file_path):
+    """Load image from local file for PDF."""
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'rb') as f:
+                return f.read()
+        else:
+            logger.warning(f"Image file not found: {file_path}")
+            return None
+    except Exception as e:
+        logger.error(f"Error loading image from {file_path}: {e}")
+        return None
+
+
+def clean_text_for_pdf(text):
+    """Clean and escape text for safe PDF generation."""
+    if not text:
+        return ""
+    
+    # Escape HTML special characters
+    text = text.replace('&', '&amp;')
+    text = text.replace('<', '&lt;')
+    text = text.replace('>', '&gt;')
+    
+    # Now convert markdown bold to HTML (after escaping)
+    # This prevents issues with < > in user text
+    text = re.sub(r'\*\*([^*]+)\*\*', r'<b>\1</b>', text)
+    
+    return text.strip()
+
+
 def extract_parameters(user_message):
     """Extract structured parameters from message."""
     try:
@@ -1067,6 +1098,10 @@ def generate_getaway(parameters):
         # Build activity string
         activity_str = ', '.join(activities) if activities and isinstance(activities, list) else "various activities"
         
+        # Build list of affiliate destinations to prioritize
+        affiliate_destinations = list(affiliate_links.keys())
+        affiliate_str = ', '.join(affiliate_destinations)
+        
         prompt = f"""Suggest 3 eco-friendly luxury getaways for Eco Friendly Luxury Travels:
 
 Budget: {budget}
@@ -1079,9 +1114,15 @@ Travelers: {travelers} people"""
         if geography:
             prompt += f"\nScenery: {geography}"
         
-        prompt += """
+        prompt += f"""
 
-Focus on destinations from: Maldives, Bali, Dubai, Paris, Santorini, Thailand, Hawaii, Rome, London, Aspen, Vail, Whistler, St. Moritz
+IMPORTANT: Select destinations ONLY from this list (we have affiliate partnerships):
+{affiliate_str}
+
+Match destinations to the requested activities and preferences. For example:
+- Skiing/snowboarding → Aspen, Vail, Whistler, St. Moritz
+- Beach/tropical → Maldives, Bali, Hawaii, Thailand
+- Culture/city → Paris, Rome, London, Dubai
 
 For each destination:
 **Option X: [Destination Name] - [Catchy Title]**
@@ -1089,7 +1130,7 @@ For each destination:
 **Destination Description:**
 [Detailed description focusing on eco-friendly aspects and matching the requested activities]
 
-**Family Activities:** (if family_size > 2)
+**Family Activities:** (if travelers > 2)
 [Activities suitable for families]
 
 **Scenery Preference:** [Type]
@@ -1098,7 +1139,7 @@ For each destination:
 
 [Compelling closing paragraph about sustainability]
 
-Format exactly like this with clear sections."""
+Use destinations from the affiliate list only. Format exactly like this with clear sections."""
         
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
@@ -1153,7 +1194,27 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
                 story.append(Spacer(1, 0.3 * inch))
         else:
             doc_title = "Luxury Getaway Recommendations"
-            doc_subtitle = f"For {parameters['family_size']} Travelers"
+            
+            # Build descriptive subtitle
+            days = parameters.get('number_of_days', 5)
+            travelers = parameters.get('family_size', 2)
+            activities = parameters.get('preferred_activities', [])
+            climate = parameters.get('climate_preferences', '')
+            
+            subtitle_parts = []
+            subtitle_parts.append(f"{days}-Day")
+            
+            if climate:
+                subtitle_parts.append(climate.title())
+            
+            if activities and isinstance(activities, list):
+                activity_desc = '/'.join(activities[:2]).title()
+                subtitle_parts.append(activity_desc)
+            
+            subtitle_parts.append("Getaway")
+            subtitle_parts.append(f"for {travelers}")
+            
+            doc_subtitle = " ".join(subtitle_parts)
         
         story.append(Paragraph(doc_title, subtitle_style))
         story.append(Paragraph(doc_subtitle, section_title_style))
@@ -1226,11 +1287,37 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
         story.append(Paragraph("<b>Booking Links:</b>", section_title_style))
         story.append(Spacer(1, 0.1 * inch))
         
-        for dest in parameters['destination']:
+        # For getaways, extract destinations from content
+        if doc_type == "getaway":
+            # Find destinations mentioned in content that match our affiliate links
+            destinations_found = []
+            for dest in affiliate_links.keys():
+                if dest in content:
+                    destinations_found.append(dest)
+            
+            # Use found destinations, fallback to parameters if none found
+            if destinations_found:
+                destinations_to_link = destinations_found
+            else:
+                destinations_to_link = parameters['destination'] if parameters.get('destination') else []
+        else:
+            # For itineraries, use parameter destinations
+            destinations_to_link = parameters['destination']
+        
+        # Add clickable links with color
+        link_style = ParagraphStyle(
+            name='BookingLink',
+            fontName='Helvetica-Bold',
+            fontSize=12,
+            textColor=BRAND_COLOR,
+            leading=16,
+        )
+        
+        for dest in destinations_to_link:
             if dest in affiliate_links:
-                link = f'<a href="{affiliate_links[dest]}">{dest} - Book Now</a>'
-                story.append(Paragraph(link, normal_style))
-                story.append(Spacer(1, 0.05 * inch))
+                link = f'<a href="{affiliate_links[dest]}" color="blue"><u>{dest} - Book Now →</u></a>'
+                story.append(Paragraph(link, link_style))
+                story.append(Spacer(1, 0.08 * inch))
         
         # Build PDF
         doc.build(story)
@@ -1243,10 +1330,34 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
 
 
 def generate_filename(parameters, doc_type="itinerary"):
-    """Generate filename."""
-    dest = "-".join(parameters["destination"])[:30].replace(" ", "-")
-    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    return f"{doc_type}-{dest}-{timestamp}.pdf"
+    """Generate filename based on parameters."""
+    # For getaways, use meaningful description
+    if doc_type == "getaway":
+        activities = parameters.get('preferred_activities', [])
+        climate = parameters.get('climate_preferences', '')
+        
+        # Build descriptive name
+        if activities and isinstance(activities, list):
+            desc = "-".join(activities[:2])  # First 2 activities
+        elif climate:
+            desc = climate
+        elif parameters.get('geography_scenery'):
+            desc = parameters.get('geography_scenery')
+        else:
+            desc = "luxury"
+        
+        desc = desc.replace(" ", "-")[:30]
+        travelers = parameters.get('family_size', 2)
+        days = parameters.get('number_of_days', 5)
+        
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        return f"getaway-{days}day-{travelers}ppl-{desc}-{timestamp}.pdf"
+    
+    # For itineraries, use destination
+    else:
+        dest = "-".join(parameters["destination"])[:30].replace(" ", "-")
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        return f"itinerary-{dest}-{timestamp}.pdf"
 
 
 # ============================================================================
