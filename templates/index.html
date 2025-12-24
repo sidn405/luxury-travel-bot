@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luxury Travel Bot - Dave</title>
+    <title>Luxury Travel Bot - Dave (Enhanced)</title>
     <style>
         * {
             margin: 0;
@@ -22,8 +22,8 @@
         
         .container {
             width: 90%;
-            max-width: 800px;
-            height: 90vh;
+            max-width: 900px;
+            height: 95vh;
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
@@ -44,9 +44,36 @@
             margin-bottom: 5px;
         }
         
-        .header p {
-            font-size: 14px;
-            opacity: 0.9;
+        .header .version {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .quick-actions {
+            padding: 12px 15px;
+            background: #f9f9f9;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            overflow-x: auto;
+        }
+        
+        .quick-action-btn {
+            padding: 6px 14px;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 18px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .quick-action-btn:hover {
+            background: #667eea;
+            color: white;
         }
         
         .chat-container {
@@ -63,14 +90,8 @@
         }
         
         @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .message.user {
@@ -82,7 +103,7 @@
         }
         
         .message-content {
-            max-width: 70%;
+            max-width: 75%;
             padding: 12px 16px;
             border-radius: 18px;
             word-wrap: break-word;
@@ -101,6 +122,50 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         
+        .parameters-box {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f4ff;
+            border-left: 3px solid #667eea;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .parameters-box .param-title {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .parameters-box .param-item {
+            margin: 3px 0;
+            color: #555;
+        }
+        
+        .parameters-box .param-label {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .intent-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            background: #4caf50;
+            color: white;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-left: 8px;
+            font-weight: bold;
+        }
+        
+        .intent-badge.itinerary {
+            background: #2196F3;
+        }
+        
+        .intent-badge.getaway {
+            background: #FF9800;
+        }
+        
         .pdf-link {
             display: inline-block;
             margin-top: 10px;
@@ -109,7 +174,7 @@
             color: white;
             text-decoration: none;
             border-radius: 8px;
-            font-size: 14px;
+            font-size: 13px;
             transition: background 0.3s;
         }
         
@@ -118,7 +183,7 @@
         }
         
         .input-container {
-            padding: 20px;
+            padding: 15px;
             background: white;
             border-top: 1px solid #e0e0e0;
             display: flex;
@@ -130,7 +195,7 @@
             padding: 12px 16px;
             border: 2px solid #e0e0e0;
             border-radius: 25px;
-            font-size: 15px;
+            font-size: 14px;
             outline: none;
             transition: border-color 0.3s;
         }
@@ -140,12 +205,12 @@
         }
         
         .input-container button {
-            padding: 12px 30px;
+            padding: 12px 28px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             border-radius: 25px;
-            font-size: 15px;
+            font-size: 14px;
             cursor: pointer;
             transition: transform 0.2s;
         }
@@ -158,31 +223,6 @@
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
-        }
-        
-        .quick-actions {
-            padding: 15px 20px;
-            background: #f9f9f9;
-            border-bottom: 1px solid #e0e0e0;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .quick-action-btn {
-            padding: 8px 16px;
-            background: white;
-            border: 2px solid #667eea;
-            color: #667eea;
-            border-radius: 20px;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .quick-action-btn:hover {
-            background: #667eea;
-            color: white;
         }
         
         .typing-indicator {
@@ -208,21 +248,12 @@
             animation: typing 1.4s infinite;
         }
         
-        .typing-indicator span:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-        
-        .typing-indicator span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
         
         @keyframes typing {
-            0%, 60%, 100% {
-                transform: translateY(0);
-            }
-            30% {
-                transform: translateY(-10px);
-            }
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
         }
         
         .welcome-message {
@@ -233,7 +264,12 @@
         
         .welcome-message h2 {
             color: #004444;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .welcome-message .feature {
+            margin: 10px 0;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -241,32 +277,38 @@
     <div class="container">
         <div class="header">
             <h1>✈️ Luxury Travel Bot</h1>
-            <p>Your AI Travel Assistant - Dave</p>
+            <p>AI Travel Assistant - Dave</p>
+            <span class="version">v2.1.0 Enhanced | Dialogflow-style Parameter Extraction</span>
         </div>
         
         <div class="quick-actions">
-            <button class="quick-action-btn" onclick="sendQuickAction('Plan a trip to Paris for 7 days')">
+            <button class="quick-action-btn" onclick="sendQuickAction('Plan a 7-day trip to Paris for 2 people with $5000 budget')">
                 🗼 Paris Trip
             </button>
-            <button class="quick-action-btn" onclick="sendQuickAction('Suggest a luxury beach getaway')">
+            <button class="quick-action-btn" onclick="sendQuickAction('Suggest luxury beach getaways')">
                 🏖️ Beach Getaway
             </button>
-            <button class="quick-action-btn" onclick="sendQuickAction('Plan a romantic escape for 2')">
+            <button class="quick-action-btn" onclick="sendQuickAction('Plan a romantic escape for 2 in Maldives')">
                 ❤️ Romantic Escape
             </button>
-            <button class="quick-action-btn" onclick="sendQuickAction('Family vacation to Maldives')">
+            <button class="quick-action-btn" onclick="sendQuickAction('Family vacation to Bali for 4 people, kids ages 8 and 10')">
                 👨‍👩‍👧‍👦 Family Trip
+            </button>
+            <button class="quick-action-btn" onclick="sendQuickAction('10-day adventure to Thailand, budget $8000')">
+                🎒 Adventure
             </button>
         </div>
         
         <div class="chat-container" id="chatContainer">
             <div class="welcome-message">
-                <h2>Welcome to Luxury Travel Bot! 👋</h2>
-                <p>I'm Dave, your AI travel assistant. I can help you:</p>
-                <p>✓ Create custom travel itineraries</p>
-                <p>✓ Suggest luxury getaways</p>
-                <p>✓ Plan your perfect vacation</p>
-                <p><br>Ask me anything or use the quick actions above!</p>
+                <h2>Welcome to Enhanced Luxury Travel Bot! 👋</h2>
+                <div class="feature">✨ <b>Smart Parameter Extraction</b> - Just tell me what you want</div>
+                <div class="feature">📅 <b>Detailed Itineraries</b> - Day-by-day with hotels & activities</div>
+                <div class="feature">🏖️ <b>Curated Getaways</b> - Personalized destination recommendations</div>
+                <div class="feature">📄 <b>Professional PDFs</b> - Download and share your plans</div>
+                <p style="margin-top: 20px; color: #999; font-size: 13px;">
+                    Try: "Plan a 5-day trip to Rome for 2 people with $4000 budget"
+                </p>
             </div>
             <div class="typing-indicator" id="typingIndicator">
                 <span></span>
@@ -279,7 +321,7 @@
             <input 
                 type="text" 
                 id="userInput" 
-                placeholder="Ask me about your next luxury trip..."
+                placeholder="Describe your dream trip..."
                 onkeypress="handleKeyPress(event)"
             >
             <button onclick="sendMessage()" id="sendBtn">Send</button>
@@ -289,7 +331,7 @@
     <script>
         const API_URL = window.location.origin;
         
-        function addMessage(content, isUser, pdfUrl = null, pdfFilename = null) {
+        function addMessage(content, isUser, pdfUrl = null, pdfFilename = null, parameters = null, intent = null) {
             const chatContainer = document.getElementById('chatContainer');
             const welcomeMsg = chatContainer.querySelector('.welcome-message');
             if (welcomeMsg) welcomeMsg.remove();
@@ -300,11 +342,50 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
             
-            // Format the content
+            // Format content
             let formattedContent = content.replace(/\n/g, '<br>');
+            
+            // Add intent badge if present
+            if (intent) {
+                formattedContent = `<span class="intent-badge ${intent}">${intent.toUpperCase()}</span><br><br>` + formattedContent;
+            }
+            
             contentDiv.innerHTML = formattedContent;
             
-            // Add PDF download link if available
+            // Add parameters box if present
+            if (parameters && !isUser) {
+                const paramsBox = document.createElement('div');
+                paramsBox.className = 'parameters-box';
+                
+                let paramsHTML = '<div class="param-title">📊 Extracted Parameters:</div>';
+                
+                if (parameters.destination && parameters.destination.length > 0) {
+                    paramsHTML += `<div class="param-item"><span class="param-label">Destination:</span> ${parameters.destination.join(', ')}</div>`;
+                }
+                if (parameters.number_of_days) {
+                    paramsHTML += `<div class="param-item"><span class="param-label">Days:</span> ${parameters.number_of_days}</div>`;
+                }
+                if (parameters.budget) {
+                    paramsHTML += `<div class="param-item"><span class="param-label">Budget:</span> ${parameters.budget}</div>`;
+                }
+                if (parameters.family_size) {
+                    paramsHTML += `<div class="param-item"><span class="param-label">Travelers:</span> ${parameters.family_size}</div>`;
+                }
+                if (parameters.preferred_activities && parameters.preferred_activities.length > 0) {
+                    paramsHTML += `<div class="param-item"><span class="param-label">Activities:</span> ${parameters.preferred_activities.join(', ')}</div>`;
+                }
+                if (parameters.climate_preferences) {
+                    paramsHTML += `<div class="param-item"><span class="param-label">Climate:</span> ${parameters.climate_preferences}</div>`;
+                }
+                if (parameters.geography_scenery) {
+                    paramsHTML += `<div class="param-item"><span class="param-label">Scenery:</span> ${parameters.geography_scenery}</div>`;
+                }
+                
+                paramsBox.innerHTML = paramsHTML;
+                contentDiv.appendChild(paramsBox);
+            }
+            
+            // Add PDF link
             if (pdfUrl && pdfFilename) {
                 const pdfLink = document.createElement('a');
                 pdfLink.href = pdfUrl;
@@ -336,7 +417,6 @@
             
             if (!message) return;
             
-            // Add user message
             addMessage(message, true);
             input.value = '';
             sendBtn.disabled = true;
@@ -345,22 +425,21 @@
             try {
                 const response = await fetch(`${API_URL}/api/chat`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: message })
                 });
                 
                 const data = await response.json();
-                
                 hideTypingIndicator();
                 
                 if (response.ok) {
                     const botResponse = data.response || 'I received your message!';
                     const pdfUrl = data.pdf_url ? `${API_URL}${data.pdf_url}` : null;
                     const pdfFilename = data.pdf_filename || null;
+                    const parameters = data.parameters || null;
+                    const intent = data.intent || null;
                     
-                    addMessage(botResponse, false, pdfUrl, pdfFilename);
+                    addMessage(botResponse, false, pdfUrl, pdfFilename, parameters, intent);
                 } else {
                     addMessage(`Sorry, I encountered an error: ${data.error || 'Unknown error'}`, false);
                 }
@@ -385,7 +464,6 @@
             }
         }
         
-        // Focus input on load
         document.getElementById('userInput').focus();
     </script>
 </body>

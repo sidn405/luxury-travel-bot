@@ -1,38 +1,29 @@
 #!/usr/bin/env python3
+"""
+Enhanced Luxury Travel Bot with Dialogflow-style parameter extraction
+Version 2.1.0 - Structured parameter handling for itineraries and getaways
+"""
+
 import datetime
 import os
 import json
 import re
-import traceback
 import logging
 import sys
-from io import BytesIO
 
-from flask import Flask, request, jsonify, send_file, send_from_directory, render_template
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_compress import Compress
 import requests
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.colors import HexColor, black, white
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.lib.utils import ImageReader
-from reportlab.pdfgen.canvas import Canvas
-from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, 
-    TableStyle, Image, Flowable
-)
-
-from bs4 import BeautifulSoup
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.colors import HexColor, black
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 
 # Setup logging
 env = os.getenv("ENV", "production")
-
-if env == "development":
-    logging_level = logging.DEBUG
-else:
-    logging_level = logging.INFO
+logging_level = logging.DEBUG if env == "development" else logging.INFO
 
 logging.basicConfig(
     level=logging_level,
@@ -41,18 +32,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger("luxury_travel_bot")
 
-# Initialize Flask app
+# Initialize Flask
 app = Flask(__name__)
 Compress(app)
 
-# Version
-APP_VERSION = "2.0.0-Railway"
+APP_VERSION = "2.1.0-Enhanced"
 
-# Create storage directories
+# Storage
 STORAGE_DIR = os.getenv("STORAGE_DIR", "/tmp/travel-pdfs")
 os.makedirs(STORAGE_DIR, exist_ok=True)
 
-# Load OpenAI API key from environment
+# OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     logger.error("OPENAI_API_KEY environment variable is missing!")
@@ -64,15 +54,6 @@ headers = {
 }
 
 # PDF Styles
-link_style = ParagraphStyle(
-    name="Link",
-    fontName="Helvetica-Bold",
-    fontSize=18,
-    leading=12,
-    textColor=HexColor("#004444"),
-    underline=True,
-)
-
 title_style = ParagraphStyle(
     name="Title",
     fontName="Helvetica-Bold",
@@ -83,17 +64,15 @@ title_style = ParagraphStyle(
 
 subtitle_style = ParagraphStyle(
     name="Subtitle",
-    fontName="Helvetica",
+    fontName="Helvetica-Bold",
     fontSize=16,
-    leading=18,
-    underline=False,
     textColor=HexColor("#004444"),
 )
 
 normal_style = ParagraphStyle(
     name="Normal",
     fontName="Helvetica",
-    fontSize=16,
+    fontSize=12,
     textColor=black,
     leading=15,
 )
@@ -873,396 +852,384 @@ banners = [
 ]
 
 
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
-
-def generate_filename(parameters):
-    """Generate a filename based on user parameters."""
+def extract_parameters(user_message):
+    """Extract structured parameters from message (Dialogflow-style)."""
     try:
-        destination = "-".join(parameters.get("destination", ["Unknown"]))
-        days = parameters.get("number_of_days", "X")
-        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        filename = f"{destination}-{days}days-{timestamp}.pdf"
-        return filename
+        prompt = f"""Extract travel parameters from: "{user_message}"
+
+Return JSON with these fields (null if not mentioned):
+{{
+  "destination": ["string"],
+  "number_of_days": number,
+  "budget": "string",
+  "preferred_activities": ["string"],
+  "family_size": number,
+  "ages": [number],
+  "travel_dates": "string",
+  "climate_preferences": "string",
+  "geography_scenery": "string"
+}}
+
+Example: "7-day Paris trip for 2, $5000" → {{"destination":["Paris"],"number_of_days":7,"family_size":2,"budget":"$5000","preferred_activities":null,"ages":null,"travel_dates":null,"climate_preferences":null,"geography_scenery":null}}"""
+
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json={
+                "model": "gpt-4",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 500,
+                "temperature": 0.3,
+            },
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            content = response.json()["choices"][0]["message"]["content"]
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                params = json.loads(json_match.group())
+                return normalize_parameters(params)
+        
+        return get_default_parameters()
     except Exception as e:
-        logger.error(f"Error generating filename: {e}")
-        return f"itinerary-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}.pdf"
+        logger.error(f"Error extracting parameters: {e}")
+        return get_default_parameters()
 
 
-def call_openai_api(prompt, model="gpt-4", max_tokens=2000, temperature=0.7):
-    """Call OpenAI API with the given prompt."""
+def normalize_parameters(params):
+    """Normalize extracted parameters."""
+    if params.get("destination") and not isinstance(params["destination"], list):
+        params["destination"] = [params["destination"]]
+    
+    params.setdefault("number_of_days", 7)
+    params.setdefault("family_size", 2)
+    params.setdefault("budget", "$5000")
+    params.setdefault("destination", ["Paris"])
+    
+    return params
+
+
+def get_default_parameters():
+    """Default parameters."""
+    return {
+        "destination": ["Paris"],
+        "number_of_days": 7,
+        "budget": "$5000",
+        "preferred_activities": None,
+        "family_size": 2,
+        "ages": None,
+        "travel_dates": None,
+        "climate_preferences": None,
+        "geography_scenery": None
+    }
+
+
+def generate_itinerary(parameters):
+    """Generate detailed itinerary."""
     try:
-        payload = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-        }
+        destinations = ", ".join(parameters["destination"])
+        prompt = f"""Create detailed luxury itinerary:
+
+Destination: {destinations}
+Days: {parameters['number_of_days']}
+Budget: {parameters['budget']}
+Travelers: {parameters['family_size']}
+{f"Activities: {', '.join(parameters['preferred_activities'])}" if parameters.get('preferred_activities') else ""}
+{f"Climate: {parameters['climate_preferences']}" if parameters.get('climate_preferences') else ""}
+
+Include:
+- Day-by-day breakdown
+- Luxury hotels with prices
+- Fine dining (breakfast/lunch/dinner)
+- Exclusive activities
+- Transportation
+- Daily cost estimates
+- Tips
+
+Be specific with names and prices."""
         
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers=headers,
-            json=payload,
-            timeout=60
+            json={
+                "model": "gpt-4",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 3000,
+                "temperature": 0.7,
+            },
+            timeout=90
         )
         
         if response.status_code == 200:
-            response_data = response.json()
-            return response_data["choices"][0]["message"]["content"]
-        else:
-            logger.error(f"OpenAI API error: {response.status_code} - {response.text}")
-            return None
+            return response.json()["choices"][0]["message"]["content"]
+        return None
     except Exception as e:
-        logger.error(f"Error calling OpenAI API: {e}")
+        logger.error(f"Error generating itinerary: {e}")
         return None
 
 
-def create_pdf_with_reportlab(content, filename, parsed_destinations=None):
-    """Create a PDF with reportlab."""
+def generate_getaway(parameters):
+    """Generate getaway recommendations."""
+    try:
+        prompt = f"""Suggest 3 luxury getaways:
+
+Budget: {parameters.get('budget', '$3000')}
+Travelers: {parameters.get('family_size', 2)}
+{f"Activities: {', '.join(parameters['preferred_activities'])}" if parameters.get('preferred_activities') else ""}
+{f"Climate: {parameters['climate_preferences']}" if parameters.get('climate_preferences') else ""}
+{f"Scenery: {parameters['geography_scenery']}" if parameters.get('geography_scenery') else ""}
+
+Focus on: Maldives, Bali, Dubai, Paris, Santorini, Thailand, Hawaii, Rome, London
+
+For each:
+1. Destination name
+2. Why perfect
+3. Best time
+4. Top 3 activities
+5. Luxury hotel + price
+6. Cost breakdown
+7. Unique experience"""
+        
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json={
+                "model": "gpt-4",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 2500,
+                "temperature": 0.7,
+            },
+            timeout=90
+        )
+        
+        if response.status_code == 200:
+            return response.json()["choices"][0]["message"]["content"]
+        return None
+    except Exception as e:
+        logger.error(f"Error generating getaway: {e}")
+        return None
+
+
+def create_pdf(content, filename, parameters, doc_type="itinerary"):
+    """Create PDF from content."""
     try:
         pdf_path = os.path.join(STORAGE_DIR, filename)
         doc = SimpleDocTemplate(pdf_path, pagesize=letter)
         story = []
-        styles = getSampleStyleSheet()
         
-        # Add title
-        title = Paragraph("Your Luxury Travel Itinerary", title_style)
-        story.append(title)
+        # Title
+        if doc_type == "itinerary":
+            title = "Luxury Travel Itinerary"
+            subtitle = f"{', '.join(parameters['destination'])} - {parameters['number_of_days']} Days"
+        else:
+            title = "Luxury Getaway Recommendations"
+            subtitle = f"For {parameters['family_size']} Travelers"
+        
+        story.append(Paragraph(title, title_style))
+        story.append(Spacer(1, 0.2 * inch))
+        story.append(Paragraph(subtitle, subtitle_style))
         story.append(Spacer(1, 0.3 * inch))
         
-        # Add content
+        # Details
+        details = f"<b>Budget:</b> {parameters['budget']} | <b>Travelers:</b> {parameters['family_size']}"
+        story.append(Paragraph(details, normal_style))
+        story.append(Spacer(1, 0.3 * inch))
+        
+        # Content
         for line in content.split('\n'):
             if line.strip():
-                p = Paragraph(line, normal_style)
-                story.append(p)
-                story.append(Spacer(1, 0.1 * inch))
+                line = line.replace('**', '<b>').replace('**', '</b>')
+                story.append(Paragraph(line, normal_style))
+                story.append(Spacer(1, 0.08 * inch))
         
-        # Add affiliate links section
-        if parsed_destinations:
-            story.append(Spacer(1, 0.3 * inch))
-            story.append(Paragraph("Booking Links:", subtitle_style))
-            story.append(Spacer(1, 0.1 * inch))
-            
-            for dest, link in parsed_destinations:
-                link_para = Paragraph(f'<a href="{link}">{dest} - Book Now</a>', link_style)
-                story.append(link_para)
-                story.append(Spacer(1, 0.1 * inch))
+        # Links
+        story.append(Spacer(1, 0.3 * inch))
+        story.append(Paragraph("<b>Booking Links:</b>", subtitle_style))
         
-        # Build PDF
+        for dest in parameters['destination']:
+            if dest in affiliate_links:
+                link = f'<a href="{affiliate_links[dest]}">{dest} - Book Now</a>'
+                story.append(Paragraph(link, normal_style))
+        
         doc.build(story)
-        logger.info(f"PDF created successfully: {pdf_path}")
+        logger.info(f"PDF created: {pdf_path}")
         return pdf_path
     except Exception as e:
         logger.error(f"Error creating PDF: {e}")
         return None
 
 
-def parse_destinations_from_response(response_text):
-    """Extract destination names from OpenAI response."""
-    try:
-        parsed_destinations = []
-        lines = response_text.split('\n')
-        
-        for line in lines:
-            for dest, link in affiliate_links["getaways"].items():
-                if dest.lower() in line.lower():
-                    parsed_destinations.append((dest, link))
-                    break
-        
-        return list(set(parsed_destinations))  # Remove duplicates
-    except Exception as e:
-        logger.error(f"Error parsing destinations: {e}")
-        return []
-
-
-def format_getaway_results(parsed_destinations, response_text):
-    """Format getaway results with clickable affiliate links."""
-    try:
-        if not parsed_destinations:
-            return response_text
-        
-        destination_links = dict(parsed_destinations)
-        lines = response_text.splitlines()
-        formatted_lines = []
-        
-        for line in lines:
-            modified_line = line
-            for dest, link in destination_links.items():
-                if dest.lower() in line.lower():
-                    if "Option" in line and "[Book Now]" not in line:
-                        modified_line = f"{line} [Book Now]({link})"
-                    elif "Destination:" in line and "[View Details]" not in line:
-                        modified_line = f"{line} [View Details]({link})"
-                    break
-            formatted_lines.append(modified_line)
-        
-        # Add Quick Links section
-        if destination_links:
-            formatted_lines.extend(["", "Quick Links:"])
-            for dest, link in sorted(destination_links.items()):
-                formatted_lines.append(f"• {dest}: [View Details]({link})")
-        
-        return "\n".join(formatted_lines)
-    except Exception as e:
-        logger.error(f"Error formatting getaway results: {e}")
-        return response_text
+def generate_filename(parameters, doc_type="itinerary"):
+    """Generate filename."""
+    dest = "-".join(parameters["destination"])[:30]
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    return f"{doc_type}-{dest}-{timestamp}.pdf"
 
 
 # ============================================================================
-# API ENDPOINTS
+# ROUTES
 # ============================================================================
 
 @app.route("/")
 def home():
-    """Serve the web interface."""
     return render_template("index.html")
 
 
-@app.route("/api/info")
-def api_info():
-    """API information endpoint."""
-    return jsonify({
-        "service": "Luxury Travel Bot",
-        "version": APP_VERSION,
-        "status": "running",
-        "endpoints": {
-            "chat": "/api/chat",
-            "itinerary": "/api/itinerary",
-            "getaway": "/api/getaway",
-            "health": "/health"
-        }
-    })
-
-
-@app.route("/health", methods=["GET"])
+@app.route("/health")
 def health():
-    """Health check endpoint."""
     return jsonify({"status": "healthy", "version": APP_VERSION}), 200
 
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    """
-    Main chat endpoint - replaces Dialogflow webhook.
-    Accepts: {"message": "user message"}
-    Returns: {"response": "bot response", "pdf_url": "optional"}
-    """
+    """Main chat endpoint with intelligent routing."""
     try:
         data = request.get_json()
-        user_message = data.get("message", "")
+        message = data.get("message", "")
         
-        if not user_message:
-            return jsonify({"error": "Message is required"}), 400
+        if not message:
+            return jsonify({"error": "Message required"}), 400
         
-        logger.info(f"Chat request: {user_message}")
+        logger.info(f"Chat: {message}")
         
-        # Determine intent based on keywords
-        message_lower = user_message.lower()
+        # Extract parameters
+        parameters = extract_parameters(message)
+        message_lower = message.lower()
         
-        if any(word in message_lower for word in ["itinerary", "plan", "trip", "travel plan"]):
-            # Redirect to itinerary generation
-            return generate_itinerary_endpoint(user_message)
-        
-        elif any(word in message_lower for word in ["getaway", "vacation", "escape", "holiday"]):
-            # Redirect to getaway suggestions
-            return generate_getaway_endpoint(user_message)
-        
+        # Route to appropriate generator
+        if any(w in message_lower for w in ["itinerary", "plan", "trip", "schedule"]):
+            content = generate_itinerary(parameters)
+            doc_type = "itinerary"
+        elif any(w in message_lower for w in ["getaway", "vacation", "escape", "suggest"]):
+            content = generate_getaway(parameters)
+            doc_type = "getaway"
         else:
-            # General conversation
-            prompt = f"""You are Dave, a luxury travel assistant AI. 
-            User says: {user_message}
-            
-            Provide a helpful, friendly response. If they're asking about travel, 
-            suggest they can ask for an itinerary or getaway recommendations."""
-            
-            response_text = call_openai_api(prompt, max_tokens=500)
-            
-            if response_text:
-                return jsonify({"response": response_text})
-            else:
-                return jsonify({"error": "Failed to generate response"}), 500
-                
+            return jsonify({
+                "response": "Hi! I'm Dave, your luxury travel assistant. I can:\n\n"
+                           "📅 Create detailed itineraries - Say 'Plan a trip to Paris'\n"
+                           "🏖️ Suggest getaways - Ask 'Suggest a luxury beach getaway'\n\n"
+                           "What would you like?",
+                "parameters": parameters
+            })
+        
+        if not content:
+            return jsonify({"error": "Failed to generate content"}), 500
+        
+        # Create PDF
+        filename = generate_filename(parameters, doc_type)
+        pdf_path = create_pdf(content, filename, parameters, doc_type)
+        
+        response = {
+            "response": content,
+            "parameters": parameters,
+            "intent": doc_type
+        }
+        
+        if pdf_path:
+            response["pdf_url"] = f"/download/{filename}"
+            response["pdf_filename"] = filename
+        
+        return jsonify(response)
+        
     except Exception as e:
-        logger.error(f"Error in chat endpoint: {e}")
+        logger.error(f"Chat error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/itinerary", methods=["POST"])
-def generate_itinerary_endpoint(user_message=None):
-    """
-    Generate travel itinerary.
-    Accepts: {
-        "destination": ["Paris", "Rome"],
-        "days": 7,
-        "budget": "$5000",
-        "family_size": 2,
-        "message": "optional natural language request"
-    }
-    """
+def api_itinerary():
+    """Direct itinerary API."""
     try:
-        data = request.get_json() if not user_message else {}
+        data = request.get_json()
         
-        if user_message:
-            # Parse from natural language
-            prompt = f"""Extract travel parameters from this request: "{user_message}"
-            Return JSON with: destination (array), days (number), budget (string), family_size (number)
-            If not specified, use: days=7, budget="$5000", family_size=2"""
-            
-            params_text = call_openai_api(prompt, max_tokens=200)
-            try:
-                parameters = json.loads(params_text)
-            except:
-                parameters = {
-                    "destination": ["Unknown"],
-                    "days": 7,
-                    "budget": "$5000",
-                    "family_size": 2
-                }
+        if "message" in data:
+            parameters = extract_parameters(data["message"])
         else:
             parameters = {
                 "destination": data.get("destination", ["Paris"]),
-                "days": data.get("days", 7),
+                "number_of_days": data.get("days", 7),
                 "budget": data.get("budget", "$5000"),
-                "family_size": data.get("family_size", 2)
+                "family_size": data.get("family_size", 2),
+                "preferred_activities": data.get("activities"),
+                "ages": data.get("ages"),
+                "travel_dates": data.get("dates"),
+                "climate_preferences": data.get("climate"),
+                "geography_scenery": data.get("scenery")
             }
         
-        # Generate itinerary
-        destinations = ", ".join(parameters["destination"])
-        prompt = f"""Create a luxury travel itinerary for:
-        Destination(s): {destinations}
-        Duration: {parameters['days']} days
-        Budget: {parameters['budget']}
-        Travelers: {parameters['family_size']} people
+        content = generate_itinerary(parameters)
+        if not content:
+            return jsonify({"error": "Failed to generate"}), 500
         
-        Include: daily activities, luxury accommodations, fine dining, exclusive experiences.
-        Be specific and detailed."""
+        filename = generate_filename(parameters, "itinerary")
+        pdf_path = create_pdf(content, filename, parameters, "itinerary")
         
-        itinerary_text = call_openai_api(prompt, max_tokens=2000)
-        
-        if not itinerary_text:
-            return jsonify({"error": "Failed to generate itinerary"}), 500
-        
-        # Parse destinations and create PDF
-        parsed_destinations = parse_destinations_from_response(itinerary_text)
-        filename = generate_filename({"destination": parameters["destination"], "number_of_days": parameters["days"]})
-        pdf_path = create_pdf_with_reportlab(itinerary_text, filename, parsed_destinations)
-        
-        response_data = {
-            "response": itinerary_text,
-            "parameters": parameters
-        }
-        
+        response = {"response": content, "parameters": parameters}
         if pdf_path:
-            response_data["pdf_url"] = f"/download/{filename}"
-            response_data["pdf_filename"] = filename
+            response["pdf_url"] = f"/download/{filename}"
+            response["pdf_filename"] = filename
         
-        return jsonify(response_data)
+        return jsonify(response)
         
     except Exception as e:
-        logger.error(f"Error generating itinerary: {e}")
+        logger.error(f"Itinerary error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/getaway", methods=["POST"])
-def generate_getaway_endpoint(user_message=None):
-    """
-    Generate getaway recommendations.
-    Accepts: {
-        "budget": "$3000",
-        "preferences": "beach, relaxation",
-        "message": "optional natural language"
-    }
-    """
+def api_getaway():
+    """Direct getaway API."""
     try:
-        data = request.get_json() if not user_message else {}
+        data = request.get_json()
         
-        if user_message:
-            budget = "$3000"
-            preferences = user_message
+        if "message" in data:
+            parameters = extract_parameters(data["message"])
         else:
-            budget = data.get("budget", "$3000")
-            preferences = data.get("preferences", "luxury, relaxation")
+            parameters = {
+                "budget": data.get("budget", "$3000"),
+                "preferred_activities": data.get("activities"),
+                "family_size": data.get("family_size", 2),
+                "climate_preferences": data.get("climate"),
+                "geography_scenery": data.get("scenery"),
+                "destination": []
+            }
         
-        prompt = f"""Suggest 3 luxury getaway destinations for:
-        Budget: {budget}
-        Preferences: {preferences}
+        content = generate_getaway(parameters)
+        if not content:
+            return jsonify({"error": "Failed to generate"}), 500
         
-        For each destination provide:
-        - Destination name
-        - Why it's perfect
-        - Best time to visit
-        - Highlight activities
-        - Estimated cost breakdown
+        filename = generate_filename(parameters, "getaway")
+        pdf_path = create_pdf(content, filename, parameters, "getaway")
         
-        Focus on: Maldives, Bali, Dubai, Paris, Santorini, Thailand, or Hawaii."""
-        
-        response_text = call_openai_api(prompt, max_tokens=1500)
-        
-        if not response_text:
-            return jsonify({"error": "Failed to generate getaway suggestions"}), 500
-        
-        # Parse and format
-        parsed_destinations = parse_destinations_from_response(response_text)
-        formatted_response = format_getaway_results(parsed_destinations, response_text)
-        
-        # Create PDF
-        filename = f"getaway-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}.pdf"
-        pdf_path = create_pdf_with_reportlab(formatted_response, filename, parsed_destinations)
-        
-        response_data = {
-            "response": formatted_response,
-            "destinations": [dest for dest, _ in parsed_destinations]
-        }
-        
+        response = {"response": content, "parameters": parameters}
         if pdf_path:
-            response_data["pdf_url"] = f"/download/{filename}"
-            response_data["pdf_filename"] = filename
+            response["pdf_url"] = f"/download/{filename}"
+            response["pdf_filename"] = filename
         
-        return jsonify(response_data)
+        return jsonify(response)
         
     except Exception as e:
-        logger.error(f"Error generating getaway: {e}")
+        logger.error(f"Getaway error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/download/<filename>")
 def download_pdf(filename):
-    """Download generated PDF."""
+    """Download PDF."""
     try:
         return send_from_directory(STORAGE_DIR, filename, as_attachment=True)
     except Exception as e:
-        logger.error(f"Error downloading file: {e}")
+        logger.error(f"Download error: {e}")
         return jsonify({"error": "File not found"}), 404
-
-
-@app.route("/files")
-def list_files():
-    """List all generated PDFs."""
-    try:
-        files = os.listdir(STORAGE_DIR)
-        pdfs = [f for f in files if f.endswith('.pdf')]
-        return jsonify({
-            "files": pdfs,
-            "count": len(pdfs),
-            "storage_dir": STORAGE_DIR
-        })
-    except Exception as e:
-        logger.error(f"Error listing files: {e}")
-        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/version")
 def version():
-    """Get app version."""
     return APP_VERSION, 200
 
 
-# ============================================================================
-# MAIN
-# ============================================================================
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    logger.info(f"Starting Luxury Travel Bot v{APP_VERSION} on port {port}")
+    logger.info(f"Starting Enhanced Bot v{APP_VERSION} on port {port}")
     app.run(host="0.0.0.0", port=port, debug=(env == "development"))
