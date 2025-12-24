@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luxury Travel Bot - Dave (Enhanced)</title>
+    <title>Eco Friendly Luxury Travels - AI Travel Assistant</title>
     <style>
         * {
             margin: 0;
@@ -13,7 +13,7 @@
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #002222 0%, #004444 50%, #006666 100%);
             height: 100vh;
             display: flex;
             justify-content: center;
@@ -22,11 +22,11 @@
         
         .container {
             width: 90%;
-            max-width: 900px;
+            max-width: 1000px;
             height: 95vh;
             background: white;
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -35,24 +35,45 @@
         .header {
             background: linear-gradient(135deg, #004444 0%, #006666 100%);
             color: white;
-            padding: 20px;
+            padding: 25px 20px;
             text-align: center;
+            border-bottom: 3px solid #FFD700;
+        }
+        
+        .header .logo {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 10px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
         }
         
         .header h1 {
-            font-size: 24px;
+            font-size: 22px;
             margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .header .tagline {
+            font-size: 13px;
+            opacity: 0.95;
+            font-style: italic;
         }
         
         .header .version {
-            font-size: 12px;
-            opacity: 0.8;
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 5px;
         }
         
         .quick-actions {
             padding: 12px 15px;
-            background: #f9f9f9;
-            border-bottom: 1px solid #e0e0e0;
+            background: #f0f8f8;
+            border-bottom: 2px solid #e0e0e0;
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
@@ -60,19 +81,20 @@
         }
         
         .quick-action-btn {
-            padding: 6px 14px;
+            padding: 8px 16px;
             background: white;
-            border: 2px solid #667eea;
-            color: #667eea;
-            border-radius: 18px;
+            border: 2px solid #004444;
+            color: #004444;
+            border-radius: 20px;
             font-size: 12px;
             cursor: pointer;
             transition: all 0.3s;
             white-space: nowrap;
+            font-weight: 500;
         }
         
         .quick-action-btn:hover {
-            background: #667eea;
+            background: #004444;
             color: white;
         }
         
@@ -80,7 +102,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 20px;
-            background: #f5f5f5;
+            background: #f5f9f9;
         }
         
         .message {
@@ -104,13 +126,13 @@
         
         .message-content {
             max-width: 75%;
-            padding: 12px 16px;
+            padding: 14px 18px;
             border-radius: 18px;
             word-wrap: break-word;
         }
         
         .message.user .message-content {
-            background: #667eea;
+            background: linear-gradient(135deg, #004444 0%, #006666 100%);
             color: white;
             border-bottom-right-radius: 4px;
         }
@@ -119,104 +141,113 @@
             background: white;
             color: #333;
             border-bottom-left-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,68,68,0.15);
+            border: 1px solid #e0f0f0;
         }
         
         .parameters-box {
-            margin-top: 10px;
-            padding: 10px;
-            background: #f0f4ff;
-            border-left: 3px solid #667eea;
-            border-radius: 4px;
+            margin-top: 12px;
+            padding: 12px;
+            background: #f0f8f8;
+            border-left: 4px solid #004444;
+            border-radius: 6px;
             font-size: 12px;
         }
         
         .parameters-box .param-title {
             font-weight: bold;
-            color: #667eea;
-            margin-bottom: 5px;
+            color: #004444;
+            margin-bottom: 8px;
+            font-size: 13px;
         }
         
         .parameters-box .param-item {
-            margin: 3px 0;
+            margin: 4px 0;
             color: #555;
         }
         
         .parameters-box .param-label {
             font-weight: 600;
-            color: #333;
+            color: #004444;
         }
         
         .intent-badge {
             display: inline-block;
-            padding: 3px 8px;
+            padding: 4px 10px;
             background: #4caf50;
             color: white;
-            border-radius: 10px;
-            font-size: 10px;
+            border-radius: 12px;
+            font-size: 11px;
             margin-left: 8px;
             font-weight: bold;
+            text-transform: uppercase;
         }
         
         .intent-badge.itinerary {
-            background: #2196F3;
+            background: #004444;
         }
         
         .intent-badge.getaway {
-            background: #FF9800;
+            background: #006666;
         }
         
         .pdf-link {
             display: inline-block;
-            margin-top: 10px;
-            padding: 8px 16px;
+            margin-top: 12px;
+            padding: 10px 20px;
             background: #004444;
             color: white;
             text-decoration: none;
             border-radius: 8px;
             font-size: 13px;
-            transition: background 0.3s;
+            transition: all 0.3s;
+            font-weight: 500;
         }
         
         .pdf-link:hover {
             background: #006666;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,68,68,0.3);
         }
         
         .input-container {
-            padding: 15px;
+            padding: 18px;
             background: white;
-            border-top: 1px solid #e0e0e0;
+            border-top: 2px solid #e0e0e0;
             display: flex;
-            gap: 10px;
+            gap: 12px;
         }
         
         .input-container input {
             flex: 1;
-            padding: 12px 16px;
+            padding: 14px 18px;
             border: 2px solid #e0e0e0;
             border-radius: 25px;
             font-size: 14px;
             outline: none;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
         }
         
         .input-container input:focus {
-            border-color: #667eea;
+            border-color: #004444;
+            box-shadow: 0 0 0 3px rgba(0,68,68,0.1);
         }
         
         .input-container button {
-            padding: 12px 28px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #004444 0%, #006666 100%);
             color: white;
             border: none;
             border-radius: 25px;
             font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.3s;
         }
         
         .input-container button:hover {
             transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,68,68,0.3);
         }
         
         .input-container button:disabled {
@@ -227,11 +258,11 @@
         
         .typing-indicator {
             display: none;
-            padding: 12px 16px;
+            padding: 14px 18px;
             background: white;
             border-radius: 18px;
             width: fit-content;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,68,68,0.15);
         }
         
         .typing-indicator.active {
@@ -242,7 +273,7 @@
             display: inline-block;
             width: 8px;
             height: 8px;
-            background: #667eea;
+            background: #004444;
             border-radius: 50%;
             margin: 0 2px;
             animation: typing 1.4s infinite;
@@ -260,54 +291,75 @@
             text-align: center;
             color: #666;
             padding: 40px 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,68,68,0.1);
         }
         
         .welcome-message h2 {
             color: #004444;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
+            font-size: 24px;
         }
         
         .welcome-message .feature {
-            margin: 10px 0;
+            margin: 12px 0;
             font-size: 14px;
+            color: #555;
+        }
+        
+        .welcome-message .feature b {
+            color: #004444;
+        }
+        
+        .eco-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #4caf50;
+            color: white;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 6px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>✈️ Luxury Travel Bot</h1>
-            <p>AI Travel Assistant - Dave</p>
-            <span class="version">v2.1.0 Enhanced | Dialogflow-style Parameter Extraction</span>
+            <div class="logo"="/templates/static/logo.png"></div>
+            <h1>Eco Friendly Luxury Travels</h1>
+            <p class="tagline">AI-Powered Sustainable Travel Planning</p>
+            <span class="version">v2.2.0 Branded Edition</span>
         </div>
         
         <div class="quick-actions">
-            <button class="quick-action-btn" onclick="sendQuickAction('Plan a 7-day trip to Paris for 2 people with $5000 budget')">
-                🗼 Paris Trip
+            <button class="quick-action-btn" onclick="sendQuickAction('Plan a 7-day eco-friendly trip to Bali for 2 people with $6000 budget')">
+                🌴 Bali Eco Retreat
             </button>
-            <button class="quick-action-btn" onclick="sendQuickAction('Suggest luxury beach getaways')">
-                🏖️ Beach Getaway
+            <button class="quick-action-btn" onclick="sendQuickAction('Suggest sustainable luxury beach getaways')">
+                🏖️ Beach Getaways
             </button>
-            <button class="quick-action-btn" onclick="sendQuickAction('Plan a romantic escape for 2 in Maldives')">
-                ❤️ Romantic Escape
+            <button class="quick-action-btn" onclick="sendQuickAction('Plan a green romantic escape for 2 in Maldives')">
+                ❤️ Romantic Maldives
             </button>
-            <button class="quick-action-btn" onclick="sendQuickAction('Family vacation to Bali for 4 people, kids ages 8 and 10')">
-                👨‍👩‍👧‍👦 Family Trip
+            <button class="quick-action-btn" onclick="sendQuickAction('Family eco vacation to Thailand for 4 people, kids ages 8 and 10')">
+                👨‍👩‍👧‍👦 Family Thailand
             </button>
-            <button class="quick-action-btn" onclick="sendQuickAction('10-day adventure to Thailand, budget $8000')">
-                🎒 Adventure
+            <button class="quick-action-btn" onclick="sendQuickAction('10-day sustainable adventure, budget $10000')">
+                🎒 Adventure Trip
             </button>
         </div>
         
         <div class="chat-container" id="chatContainer">
             <div class="welcome-message">
-                <h2>Welcome to Enhanced Luxury Travel Bot! 👋</h2>
-                <div class="feature">✨ <b>Smart Parameter Extraction</b> - Just tell me what you want</div>
-                <div class="feature">📅 <b>Detailed Itineraries</b> - Day-by-day with hotels & activities</div>
-                <div class="feature">🏖️ <b>Curated Getaways</b> - Personalized destination recommendations</div>
-                <div class="feature">📄 <b>Professional PDFs</b> - Download and share your plans</div>
-                <p style="margin-top: 20px; color: #999; font-size: 13px;">
-                    Try: "Plan a 5-day trip to Rome for 2 people with $4000 budget"
+                <h2>Welcome to Eco Friendly Luxury Travels! 🌍</h2>
+                <div class="feature">✨ <b>AI-Powered Trip Planning</b> - Smart parameter extraction<span class="eco-badge">ECO</span></div>
+                <div class="feature">📅 <b>Sustainable Itineraries</b> - Day-by-day eco-friendly plans</div>
+                <div class="feature">🏖️ <b>Green Getaways</b> - Curated sustainable destinations</div>
+                <div class="feature">📄 <b>Professional PDFs</b> - Beautiful downloadable travel guides</div>
+                <p style="margin-top: 25px; color: #004444; font-size: 14px; font-weight: 500;">
+                    Try: "Plan a 5-day eco-friendly trip to Bali for 2, budget $5000"
                 </p>
             </div>
             <div class="typing-indicator" id="typingIndicator">
@@ -321,7 +373,7 @@
             <input 
                 type="text" 
                 id="userInput" 
-                placeholder="Describe your dream trip..."
+                placeholder="Describe your sustainable dream trip..."
                 onkeypress="handleKeyPress(event)"
             >
             <button onclick="sendMessage()" id="sendBtn">Send</button>
@@ -342,17 +394,14 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
             
-            // Format content
             let formattedContent = content.replace(/\n/g, '<br>');
             
-            // Add intent badge if present
             if (intent) {
-                formattedContent = `<span class="intent-badge ${intent}">${intent.toUpperCase()}</span><br><br>` + formattedContent;
+                formattedContent = `<span class="intent-badge ${intent}">${intent}</span><br><br>` + formattedContent;
             }
             
             contentDiv.innerHTML = formattedContent;
             
-            // Add parameters box if present
             if (parameters && !isUser) {
                 const paramsBox = document.createElement('div');
                 paramsBox.className = 'parameters-box';
@@ -385,7 +434,6 @@
                 contentDiv.appendChild(paramsBox);
             }
             
-            // Add PDF link
             if (pdfUrl && pdfFilename) {
                 const pdfLink = document.createElement('a');
                 pdfLink.href = pdfUrl;

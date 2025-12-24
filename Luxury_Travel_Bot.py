@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Enhanced Luxury Travel Bot with Dialogflow-style parameter extraction
-Version 2.1.0 - Structured parameter handling for itineraries and getaways
+Eco Friendly Luxury Travels - AI Travel Assistant
+Version 2.3.0 - Local banner and logo integration
 """
 
 import datetime
@@ -18,8 +18,9 @@ import requests
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.colors import HexColor, black
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.colors import HexColor, black, white
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak
+from reportlab.lib.enums import TA_CENTER
 
 # Setup logging
 env = os.getenv("ENV", "production")
@@ -30,13 +31,15 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
-logger = logging.getLogger("luxury_travel_bot")
+logger = logging.getLogger("eco_friendly_luxury_travels")
 
-# Initialize Flask
-app = Flask(__name__)
+# Initialize Flask with static folder configuration
+app = Flask(__name__, 
+            static_folder='templates/static',
+            static_url_path='/static')
 Compress(app)
 
-APP_VERSION = "2.1.0-Enhanced"
+APP_VERSION = "2.3.0-Local-Assets"
 
 # Storage
 STORAGE_DIR = os.getenv("STORAGE_DIR", "/tmp/travel-pdfs")
@@ -53,28 +56,57 @@ headers = {
     "Content-Type": "application/json",
 }
 
+# Branding
+BRAND_NAME = "Eco Friendly Luxury Travels"
+BRAND_COLOR = HexColor("#004444")
+ACCENT_COLOR = HexColor("#006666")
+
+# Local file paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOGO_PATH = os.path.join(BASE_DIR, "templates/static/logo.png")
+BANNER_DIR = os.path.join(BASE_DIR, "graphics/Banner_ads")
+
 # PDF Styles
 title_style = ParagraphStyle(
-    name="Title",
+    name="BrandTitle",
     fontName="Helvetica-Bold",
-    fontSize=24,
-    alignment=1,
-    textColor=HexColor("#004444"),
+    fontSize=28,
+    alignment=TA_CENTER,
+    textColor=BRAND_COLOR,
+    spaceAfter=20,
 )
 
 subtitle_style = ParagraphStyle(
     name="Subtitle",
     fontName="Helvetica-Bold",
+    fontSize=20,
+    alignment=TA_CENTER,
+    textColor=BRAND_COLOR,
+    spaceAfter=10,
+)
+
+section_title_style = ParagraphStyle(
+    name="SectionTitle",
+    fontName="Helvetica-Bold",
     fontSize=16,
-    textColor=HexColor("#004444"),
+    textColor=BRAND_COLOR,
+    spaceAfter=8,
 )
 
 normal_style = ParagraphStyle(
     name="Normal",
     fontName="Helvetica",
-    fontSize=12,
+    fontSize=11,
     textColor=black,
-    leading=15,
+    leading=14,
+)
+
+small_style = ParagraphStyle(
+    name="Small",
+    fontName="Helvetica",
+    fontSize=9,
+    textColor=black,
+    leading=11,
 )
 
 # Affiliate links configuration
@@ -836,24 +868,126 @@ transport_links = [
     {"name": "Sea Radar", "url": "https://searadar.tp.st/wOulUd7g"},
 ]
 
-banners = [
+BANNER_ADS = [
     {
-        "url": "https://via.placeholder.com/800x200.png?text=Luxury+Travel+Banner+1",
+        "path": os.path.join(BANNER_DIR, "banner-1.jpg"),  # Local file
         "link": "https://www.villiersjets.com/?id=7275",
+        "alt": "Villiers Jets - Book Private Jet"
     },
     {
-        "url": "https://via.placeholder.com/800x200.png?text=Luxury+Travel+Banner+2",
+        "path": os.path.join(BANNER_DIR, "banner-2.jpg"),  # Local file
         "link": "https://searadar.tp.st/wOulUd7g",
+        "alt": "SeaRadar - Yacht Charter"
     },
     {
-        "path": "https://storage.googleapis.com/lux-travel-2/ads/banner-3.jpg",
+        "path": os.path.join(BANNER_DIR, "banner-3.jpg"),  # Local file
         "link": "https://www.skippercity.com/?ref=sidneym",
+        "alt": "Skippercity - Yacht Charter"
     },
 ]
 
 
+def download_image(url):
+    """Download image from URL for PDF."""
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            return response.content
+        return None
+    except Exception as e:
+        logger.error(f"Error downloading image from {url}: {e}")
+        return None
+
+
 def extract_parameters(user_message):
-    """Extract structured parameters from message (Dialogflow-style)."""
+    """Extract structured parameters from message."""
+    try:
+        prompt = f"""Extract travel parameters from: "{user_message}"
+
+Return JSON with these fields (null if not mentioned):
+{{
+  "destination": ["string"],
+  "number_of_days": number,
+  "budget": "string",
+  "preferred_activities": ["string"],
+  "family_size": number,
+  "ages": [number],
+  "travel_dates": "string",
+  "climate_preferences": "string",
+  "geography_scenery": "string"
+}}
+
+Example: "7-day Paris trip for 2, $5000" → {{"destination":["Paris"],"number_of_days":7,"family_size":2,"budget":"$5000","preferred_activities":null,"ages":null,"travel_dates":null,"climate_preferences":null,"geography_scenery":null}}"""
+
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json={
+                "model": "gpt-4",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 500,
+                "temperature": 0.3,
+            },
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            content = response.json()["choices"][0]["message"]["content"]
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                params = json.loads(json_match.group())
+                return normalize_parameters(params)
+        
+        return get_default_parameters()
+    except Exception as e:
+        logger.error(f"Error extracting parameters: {e}")
+        return get_default_parameters()
+
+
+def normalize_parameters(params):
+    """Normalize extracted parameters."""
+    if params.get("destination") and not isinstance(params["destination"], list):
+        params["destination"] = [params["destination"]]
+    
+    params.setdefault("number_of_days", 7)
+    params.setdefault("family_size", 2)
+    params.setdefault("budget", "$5000")
+    params.setdefault("destination", ["Paris"])
+    
+    return params
+
+
+def get_default_parameters():
+    """Default parameters."""
+    return {
+        "destination": ["Paris"],
+        "number_of_days": 7,
+        "budget": "$5000",
+        "preferred_activities": None,
+        "family_size": 2,
+        "ages": None,
+        "travel_dates": None,
+        "climate_preferences": None,
+        "geography_scenery": None
+    }
+
+
+def load_local_image(file_path):
+    """Load image from local file for PDF."""
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'rb') as f:
+                return f.read()
+        else:
+            logger.warning(f"Image file not found: {file_path}")
+            return None
+    except Exception as e:
+        logger.error(f"Error loading image from {file_path}: {e}")
+        return None
+
+
+def extract_parameters(user_message):
+    """Extract structured parameters from message."""
     try:
         prompt = f"""Extract travel parameters from: "{user_message}"
 
@@ -929,7 +1063,7 @@ def generate_itinerary(parameters):
     """Generate detailed itinerary."""
     try:
         destinations = ", ".join(parameters["destination"])
-        prompt = f"""Create detailed luxury itinerary:
+        prompt = f"""Create detailed luxury itinerary for Eco Friendly Luxury Travels:
 
 Destination: {destinations}
 Days: {parameters['number_of_days']}
@@ -939,15 +1073,15 @@ Travelers: {parameters['family_size']}
 {f"Climate: {parameters['climate_preferences']}" if parameters.get('climate_preferences') else ""}
 
 Include:
-- Day-by-day breakdown
-- Luxury hotels with prices
-- Fine dining (breakfast/lunch/dinner)
-- Exclusive activities
-- Transportation
+- Day-by-day breakdown with specific times
+- Luxury eco-friendly hotels with exact prices
+- Sustainable fine dining (breakfast/lunch/dinner) with restaurant names
+- Exclusive eco-conscious activities
+- Green transportation options
 - Daily cost estimates
-- Tips
+- Sustainability tips
 
-Be specific with names and prices."""
+Be specific with hotel names, restaurant names, and actual prices."""
         
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
@@ -972,7 +1106,7 @@ Be specific with names and prices."""
 def generate_getaway(parameters):
     """Generate getaway recommendations."""
     try:
-        prompt = f"""Suggest 3 luxury getaways:
+        prompt = f"""Suggest 3 eco-friendly luxury getaways for Eco Friendly Luxury Travels:
 
 Budget: {parameters.get('budget', '$3000')}
 Travelers: {parameters.get('family_size', 2)}
@@ -982,14 +1116,22 @@ Travelers: {parameters.get('family_size', 2)}
 
 Focus on: Maldives, Bali, Dubai, Paris, Santorini, Thailand, Hawaii, Rome, London
 
-For each:
-1. Destination name
-2. Why perfect
-3. Best time
-4. Top 3 activities
-5. Luxury hotel + price
-6. Cost breakdown
-7. Unique experience"""
+For each destination:
+**Option X: [Destination Name] - [Catchy Title]**
+
+**Destination Description:**
+[Detailed description focusing on eco-friendly aspects]
+
+**Family Activities:** (if family_size > 2)
+[Activities suitable for families]
+
+**Scenery Preference:** [Type]
+**Climate Preference:** [Type]
+**Estimated Cost:** [Amount]
+
+[Compelling closing paragraph about sustainability]
+
+Format exactly like this with clear sections."""
         
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
@@ -1012,57 +1154,122 @@ For each:
 
 
 def create_pdf(content, filename, parameters, doc_type="itinerary"):
-    """Create PDF from content."""
+    """Create branded PDF with local banner ads."""
     try:
         pdf_path = os.path.join(STORAGE_DIR, filename)
-        doc = SimpleDocTemplate(pdf_path, pagesize=letter)
+        doc = SimpleDocTemplate(pdf_path, pagesize=letter,
+                               topMargin=0.5*inch, bottomMargin=0.5*inch,
+                               leftMargin=0.75*inch, rightMargin=0.75*inch)
         story = []
         
-        # Title
+        # Brand title
+        story.append(Paragraph(BRAND_NAME, title_style))
+        story.append(Spacer(1, 0.1 * inch))
+        
+        # Document title and subtitle
         if doc_type == "itinerary":
-            title = "Luxury Travel Itinerary"
-            subtitle = f"{', '.join(parameters['destination'])} - {parameters['number_of_days']} Days"
+            doc_title = "Luxury Travel Itinerary"
+            doc_subtitle = f"{', '.join(parameters['destination'])} - {parameters['number_of_days']} Days"
+            # Add 1 banner under title for itineraries
+            banner = BANNER_ADS[0]
+            img_data = load_local_image(banner['path'])
+            if img_data:
+                from io import BytesIO
+                img = Image(BytesIO(img_data), width=6*inch, height=1.5*inch)
+                img.hAlign = 'CENTER'
+                story.append(img)
+                story.append(Spacer(1, 0.1 * inch))
+                # Add clickable link text
+                link_para = Paragraph(f'<a href="{banner["link"]}">{banner["alt"]}</a>', 
+                                    ParagraphStyle(name='Link', alignment=TA_CENTER, textColor=BRAND_COLOR, fontSize=10))
+                story.append(link_para)
+                story.append(Spacer(1, 0.3 * inch))
         else:
-            title = "Luxury Getaway Recommendations"
-            subtitle = f"For {parameters['family_size']} Travelers"
+            doc_title = "Luxury Getaway Recommendations"
+            doc_subtitle = f"For {parameters['family_size']} Travelers"
         
-        story.append(Paragraph(title, title_style))
+        story.append(Paragraph(doc_title, subtitle_style))
+        story.append(Paragraph(doc_subtitle, section_title_style))
         story.append(Spacer(1, 0.2 * inch))
-        story.append(Paragraph(subtitle, subtitle_style))
-        story.append(Spacer(1, 0.3 * inch))
         
-        # Details
+        # Trip details
         details = f"<b>Budget:</b> {parameters['budget']} | <b>Travelers:</b> {parameters['family_size']}"
         story.append(Paragraph(details, normal_style))
         story.append(Spacer(1, 0.3 * inch))
         
-        # Content
-        for line in content.split('\n'):
-            if line.strip():
-                line = line.replace('**', '<b>').replace('**', '</b>')
-                story.append(Paragraph(line, normal_style))
-                story.append(Spacer(1, 0.08 * inch))
+        # Content - for getaways, split by options to insert banners
+        if doc_type == "getaway":
+            # Split content by options
+            sections = re.split(r'(Option \d+:)', content)
+            banner_idx = 0
+            
+            for i, section in enumerate(sections):
+                if section.strip():
+                    # Add text
+                    for line in section.split('\n'):
+                        if line.strip():
+                            # Make headers bold
+                            if line.startswith('**') or line.startswith('Option'):
+                                line = line.replace('**', '<b>').replace('**', '</b>')
+                                if not '<b>' in line:
+                                    line = f'<b>{line}</b>'
+                                story.append(Paragraph(line, section_title_style))
+                            else:
+                                story.append(Paragraph(line, normal_style))
+                            story.append(Spacer(1, 0.08 * inch))
+                    
+                    # Add banner after each option (3 total for getaways)
+                    if 'Option' in section and banner_idx < 3:
+                        story.append(Spacer(1, 0.2 * inch))
+                        banner = BANNER_ADS[banner_idx % len(BANNER_ADS)]
+                        img_data = load_local_image(banner['path'])
+                        if img_data:
+                            from io import BytesIO
+                            img = Image(BytesIO(img_data), width=6*inch, height=1.5*inch)
+                            img.hAlign = 'CENTER'
+                            story.append(img)
+                            story.append(Spacer(1, 0.05 * inch))
+                            # Clickable link
+                            link_para = Paragraph(f'<a href="{banner["link"]}">{banner["alt"]}</a>', 
+                                                ParagraphStyle(name='Link', alignment=TA_CENTER, textColor=BRAND_COLOR, fontSize=10))
+                            story.append(link_para)
+                            story.append(Spacer(1, 0.3 * inch))
+                        banner_idx += 1
+        else:
+            # Itinerary - regular content
+            for line in content.split('\n'):
+                if line.strip():
+                    line = line.replace('**', '<b>').replace('**', '</b>')
+                    if line.startswith('<b>Day '):
+                        story.append(Paragraph(line, section_title_style))
+                    else:
+                        story.append(Paragraph(line, normal_style))
+                    story.append(Spacer(1, 0.08 * inch))
         
-        # Links
+        # Booking links section
         story.append(Spacer(1, 0.3 * inch))
-        story.append(Paragraph("<b>Booking Links:</b>", subtitle_style))
+        story.append(Paragraph("<b>Booking Links:</b>", section_title_style))
+        story.append(Spacer(1, 0.1 * inch))
         
         for dest in parameters['destination']:
             if dest in affiliate_links:
                 link = f'<a href="{affiliate_links[dest]}">{dest} - Book Now</a>'
                 story.append(Paragraph(link, normal_style))
+                story.append(Spacer(1, 0.05 * inch))
         
+        # Build PDF
         doc.build(story)
         logger.info(f"PDF created: {pdf_path}")
         return pdf_path
     except Exception as e:
         logger.error(f"Error creating PDF: {e}")
+        logger.exception(e)
         return None
 
 
 def generate_filename(parameters, doc_type="itinerary"):
     """Generate filename."""
-    dest = "-".join(parameters["destination"])[:30]
+    dest = "-".join(parameters["destination"])[:30].replace(" ", "-")
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     return f"{doc_type}-{dest}-{timestamp}.pdf"
 
@@ -1083,7 +1290,7 @@ def health():
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    """Main chat endpoint with intelligent routing."""
+    """Main chat endpoint."""
     try:
         data = request.get_json()
         message = data.get("message", "")
@@ -1106,10 +1313,10 @@ def chat():
             doc_type = "getaway"
         else:
             return jsonify({
-                "response": "Hi! I'm Dave, your luxury travel assistant. I can:\n\n"
-                           "📅 Create detailed itineraries - Say 'Plan a trip to Paris'\n"
-                           "🏖️ Suggest getaways - Ask 'Suggest a luxury beach getaway'\n\n"
-                           "What would you like?",
+                "response": "Hi! I'm Dave from Eco Friendly Luxury Travels. I can:\n\n"
+                           "📅 Create detailed sustainable travel itineraries\n"
+                           "🏖️ Suggest eco-friendly luxury getaways\n\n"
+                           "What would you like to explore?",
                 "parameters": parameters
             })
         
@@ -1134,83 +1341,7 @@ def chat():
         
     except Exception as e:
         logger.error(f"Chat error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/itinerary", methods=["POST"])
-def api_itinerary():
-    """Direct itinerary API."""
-    try:
-        data = request.get_json()
-        
-        if "message" in data:
-            parameters = extract_parameters(data["message"])
-        else:
-            parameters = {
-                "destination": data.get("destination", ["Paris"]),
-                "number_of_days": data.get("days", 7),
-                "budget": data.get("budget", "$5000"),
-                "family_size": data.get("family_size", 2),
-                "preferred_activities": data.get("activities"),
-                "ages": data.get("ages"),
-                "travel_dates": data.get("dates"),
-                "climate_preferences": data.get("climate"),
-                "geography_scenery": data.get("scenery")
-            }
-        
-        content = generate_itinerary(parameters)
-        if not content:
-            return jsonify({"error": "Failed to generate"}), 500
-        
-        filename = generate_filename(parameters, "itinerary")
-        pdf_path = create_pdf(content, filename, parameters, "itinerary")
-        
-        response = {"response": content, "parameters": parameters}
-        if pdf_path:
-            response["pdf_url"] = f"/download/{filename}"
-            response["pdf_filename"] = filename
-        
-        return jsonify(response)
-        
-    except Exception as e:
-        logger.error(f"Itinerary error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/getaway", methods=["POST"])
-def api_getaway():
-    """Direct getaway API."""
-    try:
-        data = request.get_json()
-        
-        if "message" in data:
-            parameters = extract_parameters(data["message"])
-        else:
-            parameters = {
-                "budget": data.get("budget", "$3000"),
-                "preferred_activities": data.get("activities"),
-                "family_size": data.get("family_size", 2),
-                "climate_preferences": data.get("climate"),
-                "geography_scenery": data.get("scenery"),
-                "destination": []
-            }
-        
-        content = generate_getaway(parameters)
-        if not content:
-            return jsonify({"error": "Failed to generate"}), 500
-        
-        filename = generate_filename(parameters, "getaway")
-        pdf_path = create_pdf(content, filename, parameters, "getaway")
-        
-        response = {"response": content, "parameters": parameters}
-        if pdf_path:
-            response["pdf_url"] = f"/download/{filename}"
-            response["pdf_filename"] = filename
-        
-        return jsonify(response)
-        
-    except Exception as e:
-        logger.error(f"Getaway error: {e}")
+        logger.exception(e)
         return jsonify({"error": str(e)}), 500
 
 
@@ -1231,5 +1362,17 @@ def version():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    logger.info(f"Starting Enhanced Bot v{APP_VERSION} on port {port}")
+    logger.info(f"Starting {BRAND_NAME} Bot v{APP_VERSION} on port {port}")
+    
+    # Check if required files exist
+    if not os.path.exists(LOGO_PATH):
+        logger.warning(f"Logo file not found at: {LOGO_PATH}")
+    if not os.path.exists(BANNER_DIR):
+        logger.warning(f"Banner directory not found at: {BANNER_DIR}")
+    else:
+        for i in range(1, 4):
+            banner_path = os.path.join(BANNER_DIR, f"banner-{i}.jpg")
+            if not os.path.exists(banner_path):
+                logger.warning(f"Banner file not found: {banner_path}")
+    
     app.run(host="0.0.0.0", port=port, debug=(env == "development"))
