@@ -1074,6 +1074,10 @@ Be specific with hotel names, restaurant names, and actual prices."""
             timeout=90
         )
         
+        # ADD THIS DEBUG LOGGING:
+        logger.info(f"OpenAI Status Code: {response.status_code}")
+        logger.info(f"OpenAI Response: {response.text[:200]}")  # First 200 chars
+        
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
         return None
@@ -1148,6 +1152,10 @@ Use destinations from the affiliate list only. Format exactly like this with cle
             },
             timeout=90
         )
+        
+        # ADD THIS DEBUG LOGGING:
+        logger.info(f"OpenAI Status Code: {response.status_code}")
+        logger.info(f"OpenAI Response: {response.text[:200]}")  # First 200 chars
         
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
