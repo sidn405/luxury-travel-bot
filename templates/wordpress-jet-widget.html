@@ -1,0 +1,292 @@
+<!-- 
+WORDPRESS READY - PRIVATE JET SEARCH WIDGET
+Just copy this entire block and paste into WordPress Custom HTML block
+-->
+
+<!-- ========== STYLES ========== -->
+<style>
+.jet-widget {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 30px;
+    background: linear-gradient(135deg, #004444 0%, #006666 100%);
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    color: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.jet-widget h2 {
+    text-align: center;
+    font-size: 2em;
+    margin: 0 0 10px 0;
+}
+
+.jet-widget p {
+    text-align: center;
+    margin: 0 0 30px 0;
+    opacity: 0.9;
+}
+
+.jet-form {
+    background: rgba(255,255,255,0.1);
+    padding: 25px;
+    border-radius: 15px;
+}
+
+.jet-field {
+    margin-bottom: 20px;
+}
+
+.jet-field label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.jet-field input,
+.jet-field select {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    box-sizing: border-box;
+}
+
+.jet-btn {
+    width: 100%;
+    padding: 15px;
+    background: #FFD700;
+    color: #004444;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.jet-btn:hover {
+    background: #FFC700;
+    transform: translateY(-2px);
+}
+
+.jet-results {
+    margin-top: 30px;
+    padding: 25px;
+    background: white;
+    border-radius: 15px;
+    color: #333;
+    display: none;
+}
+
+.jet-flight {
+    padding: 15px;
+    margin: 15px 0;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #004444;
+}
+
+.jet-link {
+    display: inline-block;
+    padding: 12px 24px;
+    background: #004444;
+    color: white !important;
+    text-decoration: none;
+    border-radius: 8px;
+    margin-top: 15px;
+    font-weight: 600;
+}
+
+.jet-link:hover {
+    background: #006666;
+}
+
+@media (max-width: 768px) {
+    .jet-widget {
+        margin: 20px 10px;
+        padding: 20px;
+    }
+}
+</style>
+
+<!-- ========== WIDGET HTML ========== -->
+<div class="jet-widget">
+    <h2>✈️ Private Jet Charter Search</h2>
+    <p>Find the perfect aircraft for your journey</p>
+    
+    <form class="jet-form" onsubmit="return searchJets(event)">
+        <div class="jet-field">
+            <label>✈️ Departure From</label>
+            <input type="text" id="jet-origin" placeholder="Miami, New York, Los Angeles..." required>
+        </div>
+        
+        <div class="jet-field">
+            <label>📍 Flying To</label>
+            <input type="text" id="jet-destination" placeholder="Aspen, Dubai, Bali..." required>
+        </div>
+        
+        <div class="jet-field">
+            <label>📅 Departure Date (Optional)</label>
+            <input type="date" id="jet-date">
+        </div>
+        
+        <div class="jet-field">
+            <label>👥 Number of Passengers</label>
+            <select id="jet-passengers">
+                <option value="1">1 Passenger</option>
+                <option value="2">2 Passengers</option>
+                <option value="4" selected>4 Passengers</option>
+                <option value="6">6 Passengers</option>
+                <option value="8">8 Passengers</option>
+                <option value="10">10+ Passengers</option>
+            </select>
+        </div>
+        
+        <button type="submit" class="jet-btn">🔍 Search Available Jets</button>
+    </form>
+    
+    <div id="jet-results" class="jet-results"></div>
+</div>
+
+<!-- ========== JAVASCRIPT ========== -->
+<script>
+// ⚠️ IMPORTANT: Update this URL to your Railway app
+const JET_API_URL = 'https://luxury-travel-bot-production.up.railway.app/api/flights/search';
+
+async function searchJets(event) {
+    event.preventDefault();
+    
+    // Get form values
+    const origin = document.getElementById('jet-origin').value;
+    const destination = document.getElementById('jet-destination').value;
+    const date = document.getElementById('jet-date').value;
+    const passengers = document.getElementById('jet-passengers').value;
+    
+    // Show loading
+    const resultsDiv = document.getElementById('jet-results');
+    resultsDiv.innerHTML = '<p style="text-align:center; padding: 20px;">✈️ Searching for available jets...</p>';
+    resultsDiv.style.display = 'block';
+    
+    try {
+        // Call API
+        const response = await fetch(JET_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                origin: origin,
+                destination: destination,
+                departure_date: date || null,
+                passengers: parseInt(passengers)
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Search failed');
+        }
+        
+        const data = await response.json();
+        displayResults(data);
+        
+    } catch (error) {
+        console.error('Error:', error);
+        resultsDiv.innerHTML = `
+            <h3 style="color: #dc3545;">⚠️ Search Error</h3>
+            <p>Unable to search flights at this time. Please contact us directly for assistance.</p>
+            <a href="https://www.villiersjets.com/?id=7275" target="_blank" class="jet-link">
+                Contact Villers Jets →
+            </a>
+        `;
+    }
+}
+
+function displayResults(data) {
+    const resultsDiv = document.getElementById('jet-results');
+    
+    if (!data.flights || data.flights.length === 0) {
+        resultsDiv.innerHTML = `
+            <h3>No Exact Matches Found</h3>
+            <p>Contact our partner Villers Jets for personalized quotes on this route.</p>
+            <a href="${data.affiliate_link || 'https://www.villiersjets.com/?id=7275'}" 
+               target="_blank" 
+               class="jet-link">
+                Get Custom Quote →
+            </a>
+        `;
+        return;
+    }
+    
+    let html = `
+        <h3 style="margin-top: 0;">
+            Available Jets: ${data.origin} → ${data.destination}
+        </h3>
+    `;
+    
+    // Display each flight
+    data.flights.forEach((flight, index) => {
+        const price = flight.price > 0 
+            ? `$${flight.price.toLocaleString()}` 
+            : 'Request Quote';
+        
+        html += `
+            <div class="jet-flight">
+                <h4 style="margin: 0 0 10px 0;">${index + 1}. ${flight.aircraft}</h4>
+                <p style="margin: 5px 0;">
+                    <strong>Type:</strong> ${flight.aircraft_type}<br>
+                    <strong>Passengers:</strong> Up to ${flight.passengers}<br>
+                    <strong>Flight Time:</strong> ${flight.flight_time}<br>
+                    <strong>Price:</strong> ${price}
+                </p>
+            </div>
+        `;
+    });
+    
+    // Add booking link
+    html += `
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="${data.affiliate_link}" 
+               target="_blank" 
+               rel="noopener noreferrer"
+               class="jet-link">
+                🔗 Book Now with Villers Jets →
+            </a>
+            <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                💚 Eco-conscious luxury travel
+            </p>
+        </div>
+    `;
+    
+    resultsDiv.innerHTML = html;
+}
+
+// Set minimum date to today
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('jet-date');
+    if (dateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.setAttribute('min', today);
+    }
+});
+</script>
+
+<!-- 
+INSTALLATION INSTRUCTIONS:
+
+1. Copy this ENTIRE file
+2. Go to WordPress → Pages → Add New (or edit existing page)
+3. Click the "+" button → Search for "Custom HTML"
+4. Paste this code
+5. UPDATE LINE 142: Change the API URL to your Railway URL
+6. Click "Publish"
+7. View your page!
+
+IMPORTANT: 
+- Make sure to update the JET_API_URL variable (line 142)
+- Your Railway app must have CORS enabled for your WordPress domain
+
+Need help? The WORDPRESS_INTEGRATION.md file has full details!
+-->

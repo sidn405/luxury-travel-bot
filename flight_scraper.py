@@ -47,6 +47,100 @@ LUXURY_AIRPORTS = {
     "tokyo": "NRT",
 }
 
+def _fallback_response(self, origin: str, destination: str) -> Dict:
+    """
+    Return fallback response when API fails.
+    Shows generic jets + clear messaging + affiliate link.
+    """
+    logger.info("Using fallback flight response")
+    
+    # Generic luxury jet options (NOT real availability)
+    generic_flights = [
+        {
+            "aircraft": "Gulfstream G650",
+            "aircraft_type": "Heavy Jet",
+            "price": 0,  # Call for quote
+            "currency": "USD",
+            "passengers": 14,
+            "flight_time": "TBD",
+            "operator": "Contact Villers Jets",
+        },
+        {
+            "aircraft": "Bombardier Global 7500",
+            "aircraft_type": "Heavy Jet", 
+            "price": 0,
+            "currency": "USD",
+            "passengers": 19,
+            "flight_time": "TBD",
+            "operator": "Contact Villers Jets",
+        },
+        {
+            "aircraft": "Cessna Citation X",
+            "aircraft_type": "Midsize Jet",
+            "price": 0,
+            "currency": "USD",
+            "passengers": 8,
+            "flight_time": "TBD",
+            "operator": "Contact Villers Jets",
+        },
+    ]
+    
+    return {
+        "origin": origin,
+        "destination": destination,
+        "flights": generic_flights,
+        "affiliate_link": self._build_villers_jets_link(origin, destination),
+        "total_results": len(generic_flights),
+        "note": "⚠️ These are example aircraft types. Contact Villers Jets for real-time availability and pricing on your route.",
+        "is_fallback": True  # Flag to indicate this is not real data
+    }
+
+
+def format_for_chat(self, flight_data: Dict) -> str:
+    """Format flight results for chat display with clear messaging."""
+    
+    if not flight_data.get("flights"):
+        return f"No flights found from {flight_data['origin']} to {flight_data['destination']}."
+    
+    # Check if this is fallback data
+    is_fallback = flight_data.get("is_fallback", False)
+    
+    if is_fallback:
+        # Clear messaging for generic options
+        output = [
+            f"✈️ Private Jet Charter: {flight_data['origin']} → {flight_data['destination']}\n",
+            "📋 Example Aircraft Available:\n"
+        ]
+    else:
+        # Real availability
+        output = [
+            f"✈️ Available Private Jets: {flight_data['origin']} → {flight_data['destination']}\n"
+        ]
+    
+    for i, flight in enumerate(flight_data["flights"], 1):
+        price_str = f"${flight['price']:,.0f}" if flight['price'] > 0 else "Request Quote"
+        
+        output.append(
+            f"{i}. {flight['aircraft']}\n"
+            f"   • Type: {flight['aircraft_type']}\n"
+            f"   • Passengers: Up to {flight['passengers']}\n"
+            f"   • Flight Time: {flight['flight_time']}\n"
+            f"   • Price: {price_str}\n"
+        )
+    
+    # Make link clearly clickable
+    output.append(
+        f"\n🔗 Get Real-Time Quote & Book:\n"
+        f"{flight_data['affiliate_link']}\n"
+    )
+    
+    output.append("\n💚 Eco-conscious luxury travel with Villers Jets")
+    
+    if flight_data.get("note"):
+        output.append(f"\n{flight_data['note']}")
+    
+    return "\n".join(output)
+
 class FlightScraper:
     """Scrape and format private jet flight options using Aviapages API."""
     

@@ -14,6 +14,7 @@ import sys
 from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_compress import Compress
 import requests
+from flask_cors import CORS
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
@@ -38,7 +39,14 @@ logger = logging.getLogger("eco_friendly_luxury_travels")
 app = Flask(__name__, 
             static_folder='templates/static',
             static_url_path='/static')
-Compress(app)
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "https://www.ecofriendlyluxurytravels.com",  # ⚠️ CHANGE THIS
+            "http://www.your-wordpress-site.com",
+        ]
+    }
+})
 
 APP_VERSION = "2.3.4-Hotel-Affiliates"
 
