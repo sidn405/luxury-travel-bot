@@ -329,6 +329,43 @@
             font-weight: bold;
             margin-left: 6px;
         }
+
+        .flight-link {
+            color: #007bff !important;
+            text-decoration: underline !important;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .flight-link:hover {
+            color: #0056b3 !important;
+            text-decoration: none !important;
+            background-color: rgba(0, 123, 255, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .message {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .bot-message {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+
+        .message-metadata {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #dee2e6;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
     </style>
 </head>
 <body>
@@ -403,7 +440,16 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
             
+            // Convert newlines to <br>
             let formattedContent = content.replace(/\n/g, '<br>');
+            
+            // ✅ FIX #1: Make URLs clickable
+            const urlRegex = /(https?:\/\/[^\s<]+)/g;
+            formattedContent = formattedContent.replace(urlRegex, function(url) {
+                // Remove trailing punctuation
+                url = url.replace(/[.,;!?]+$/, '');
+                return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="flight-link" style="color: #007bff; text-decoration: underline; font-weight: 600;">${url}</a>`;
+            });
             
             if (intent) {
                 formattedContent = `<span class="intent-badge ${intent}">${intent}</span><br><br>` + formattedContent;
@@ -417,15 +463,31 @@
                 
                 let paramsHTML = '<div class="param-title">📊 Extracted Parameters:</div>';
                 
+                // ✅ FIX #2: Add origin for flights
+                if (parameters.origin) {
+                    const orig = Array.isArray(parameters.origin) 
+                        ? parameters.origin.join(', ')
+                        : parameters.origin;
+                    paramsHTML += `<div class="param-item"><span class="param-label">Origin:</span> ${orig}</div>`;
+                }
+                
+                // ✅ FIX #3: Better destination handling (already fixed!)
                 if (parameters.destination) {
                     const dest = Array.isArray(parameters.destination) 
                         ? parameters.destination.join(', ')
                         : parameters.destination;
                     paramsHTML += `<div class="param-item"><span class="param-label">Destination:</span> ${dest}</div>`;
                 }
+                
                 if (parameters.number_of_days) {
                     paramsHTML += `<div class="param-item"><span class="param-label">Days:</span> ${parameters.number_of_days}</div>`;
                 }
+                
+                // ✅ FIX #4: Add passengers for flights
+                if (parameters.passengers) {
+                    paramsHTML += `<div class="param-item"><span class="param-label">Passengers:</span> ${parameters.passengers}</div>`;
+                }
+                
                 if (parameters.budget) {
                     paramsHTML += `<div class="param-item"><span class="param-label">Budget:</span> ${parameters.budget}</div>`;
                 }
@@ -460,7 +522,7 @@
             chatContainer.insertBefore(messageDiv, document.getElementById('typingIndicator'));
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
-        
+                
         function showTypingIndicator() {
             document.getElementById('typingIndicator').classList.add('active');
             document.getElementById('chatContainer').scrollTop = document.getElementById('chatContainer').scrollHeight;
