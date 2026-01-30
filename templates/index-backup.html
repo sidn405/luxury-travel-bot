@@ -417,11 +417,8 @@
                 
                 let paramsHTML = '<div class="param-title">📊 Extracted Parameters:</div>';
                 
-                if (parameters.destination) {
-                    const dest = Array.isArray(parameters.destination) 
-                        ? parameters.destination.join(', ')
-                        : parameters.destination;
-                    paramsHTML += `<div class="param-item"><span class="param-label">Destination:</span> ${dest}</div>`;
+                if (parameters.destination && parameters.destination.length > 0) {
+                    paramsHTML += `<div class="param-item"><span class="param-label">Destination:</span> ${parameters.destination.join(', ')}</div>`;
                 }
                 if (parameters.number_of_days) {
                     paramsHTML += `<div class="param-item"><span class="param-label">Days:</span> ${parameters.number_of_days}</div>`;
