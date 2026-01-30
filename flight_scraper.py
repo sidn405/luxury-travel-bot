@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Aviapages API Configuration
 AVIAPAGES_API_KEY = os.getenv("AVIAPAGES_API_KEY")
-AVIAPAGES_BASE_URL = "https://api.aviapages.com/v1"
+AVIAPAGES_BASE_URL = "https://api.aviapages.com"
 
 # Villers Jets Affiliate Configuration
 VILLERS_JETS_AFFILIATE_URL = os.getenv(
@@ -125,24 +125,52 @@ class FlightScraper:
             # Make API request to Aviapages
             logger.info(f"Searching flights: {origin_code} -> {dest_code} on {departure_date}")
             
-            # Note: Aviapages free tier endpoints may vary. Common endpoints:
-            # /flights/search or /charter/quote
-            response = requests.get(
-                f"{AVIAPAGES_BASE_URL}/charter/quote",
-                headers=self.headers,
-                params=params,
-                timeout=10
-            )
+            # Use Aviapages price_calculator endpoint (POST request based on docs)
+            payload = {
+                "departure_airport": origin_code,
+                "arrival_airport": dest_code,
+                "departure_date": departure_date,
+                "passengers": passengers,
+            }
             
-            if response.status_code == 200:
-                data = response.json()
-                return self._format_flight_results(data, origin, destination)
-            elif response.status_code == 401:
-                logger.error("Aviapages API authentication failed. Check API key.")
-                return self._fallback_response(origin, destination)
-            else:
-                logger.warning(f"Aviapages API returned status {response.status_code}")
-                return self._fallback_response(origin, destination)
+            try:
+                # Try price calculator first (most relevant for quotes)
+                response = requests.post(
+                    f"{AVIAPAGES_BASE_URL}/price_calculator/",
+                    headers=self.headers,
+                    json=payload,
+                    timeout=15
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    return self._format_flight_results(data, origin, destination)
+                    
+                # If price calculator fails, try availabilities endpoint (GET)
+                elif response.status_code in [404, 405]:
+                    logger.info("Trying availabilities endpoint...")
+                    response = requests.get(
+                        f"{AVIAPAGES_BASE_URL}/availabilities/",
+                        headers=self.headers,
+                        params=params,
+                        timeout=15
+                    )
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        return self._format_flight_results(data, origin, destination)
+                
+                # Check for auth error
+                if response.status_code == 401:
+                    logger.error("Aviapages API authentication failed. Check API key.")
+                    return self._fallback_response(origin, destination)
+                    
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"API request failed: {e}")
+            
+            # Fallback if all attempts fail
+            logger.warning("Using fallback response")
+            return self._fallback_response(origin, destination)
                 
         except requests.exceptions.RequestException as e:
             logger.error(f"API request failed: {e}")
@@ -155,10 +183,38 @@ class FlightScraper:
         """Format Aviapages API response into user-friendly output."""
         flights = []
         
-        # Parse API response (structure depends on Aviapages format)
-        # This is a generic parser - adjust based on actual API response
-        if "quotes" in api_data:
-            for quote in api_data.get("quotes", [])[:5]:  # Top 5 results
+        # Parse API response - handle different response structures
+        # Price Calculator response structure
+        if "results" in api_data:
+            for result in api_data.get("results", [])[:5]:
+                flight = {
+                    "aircraft": result.get("aircraft_name") or result.get("aircraft", "Luxury Private Jet"),
+                    "aircraft_type": result.get("aircraft_type") or result.get("category", "Heavy Jet"),
+                    "price": result.get("total_price") or result.get("price", 0),
+                    "currency": result.get("currency", "USD"),
+                    "passengers": result.get("max_passengers") or result.get("capacity", 8),
+                    "flight_time": result.get("flight_duration") or result.get("flight_time", "TBD"),
+                    "operator": result.get("operator_name") or result.get("operator", "Private Operator"),
+                }
+                flights.append(flight)
+        
+        # Availabilities response structure
+        elif "data" in api_data:
+            for item in api_data.get("data", [])[:5]:
+                flight = {
+                    "aircraft": item.get("aircraft_name") or item.get("name", "Private Jet"),
+                    "aircraft_type": item.get("type") or item.get("category", "Heavy Jet"),
+                    "price": item.get("estimated_price") or item.get("price", 0),
+                    "currency": "USD",
+                    "passengers": item.get("max_passengers") or item.get("seats", 8),
+                    "flight_time": item.get("duration") or "TBD",
+                    "operator": item.get("operator") or "Private Operator",
+                }
+                flights.append(flight)
+        
+        # Legacy format support (from previous implementation)
+        elif "quotes" in api_data:
+            for quote in api_data.get("quotes", [])[:5]:
                 flight = {
                     "aircraft": quote.get("aircraft_name", "Luxury Private Jet"),
                     "aircraft_type": quote.get("aircraft_type", "Heavy Jet"),
@@ -169,6 +225,7 @@ class FlightScraper:
                     "operator": quote.get("operator", "Private Operator"),
                 }
                 flights.append(flight)
+        
         elif "flights" in api_data:
             for flight_data in api_data.get("flights", [])[:5]:
                 flight = {
@@ -179,6 +236,20 @@ class FlightScraper:
                     "passengers": flight_data.get("capacity", 8),
                     "flight_time": flight_data.get("duration", "TBD"),
                     "operator": flight_data.get("company", "Private Operator"),
+                }
+                flights.append(flight)
+        
+        # Direct array of aircraft
+        elif isinstance(api_data, list):
+            for item in api_data[:5]:
+                flight = {
+                    "aircraft": item.get("name") or item.get("aircraft", "Private Jet"),
+                    "aircraft_type": item.get("category") or item.get("type", "Heavy Jet"),
+                    "price": item.get("price", 0),
+                    "currency": "USD",
+                    "passengers": item.get("max_passengers") or item.get("seats", 8),
+                    "flight_time": item.get("duration", "TBD"),
+                    "operator": item.get("operator", "Private Operator"),
                 }
                 flights.append(flight)
         
@@ -281,6 +352,7 @@ class FlightScraper:
     def search_empty_legs(self, region: Optional[str] = None) -> Dict:
         """
         Search for empty leg flights (one-way repositioning flights at discount).
+        Note: Aviapages free tier may not include empty legs endpoint.
         
         Args:
             region: Geographic region (e.g., "US", "Europe", "Global")
@@ -289,27 +361,37 @@ class FlightScraper:
             Dict with empty leg deals
         """
         try:
-            params = {}
-            if region:
-                params["region"] = region
+            params = {"type": "empty_leg"} if not region else {"type": "empty_leg", "region": region}
             
-            # Empty legs endpoint (may vary by provider)
+            # Try availabilities endpoint with empty_leg filter
             response = requests.get(
-                f"{AVIAPAGES_BASE_URL}/empty-legs",
+                f"{AVIAPAGES_BASE_URL}/availabilities/",
                 headers=self.headers,
                 params=params,
                 timeout=10
             )
             
-            if response.status_code == 200:
+            if response and response.status_code == 200:
                 data = response.json()
                 return self._format_empty_legs(data)
             else:
-                return {"empty_legs": [], "note": "Check with Villers Jets for current empty leg deals"}
+                # Empty legs might not be available in free tier
+                logger.info("Empty legs not available via API, using fallback")
+                return {
+                    "empty_legs": [], 
+                    "total_deals": 0,
+                    "affiliate_link": VILLERS_JETS_AFFILIATE_URL,
+                    "note": "Empty leg deals available - Contact Villers Jets for current offers. Save up to 75%!"
+                }
                 
         except Exception as e:
             logger.error(f"Empty leg search error: {e}")
-            return {"empty_legs": [], "note": "Check with Villers Jets for current empty leg deals"}
+            return {
+                "empty_legs": [], 
+                "total_deals": 0,
+                "affiliate_link": VILLERS_JETS_AFFILIATE_URL,
+                "note": "Contact Villers Jets for empty leg deals and save up to 75%"
+            }
     
     def _format_empty_legs(self, api_data: Dict) -> Dict:
         """Format empty leg results."""
@@ -331,6 +413,37 @@ class FlightScraper:
             "affiliate_link": VILLERS_JETS_AFFILIATE_URL,
             "total_deals": len(deals)
         }
+    
+    def get_aircraft_info(self, aircraft_id: Optional[int] = None) -> Dict:
+        """
+        Get aircraft information from Aviapages.
+        
+        Args:
+            aircraft_id: Specific aircraft ID (optional - returns list if None)
+        
+        Returns:
+            Dict with aircraft details
+        """
+        try:
+            url = f"{AVIAPAGES_BASE_URL}/aircraft/"
+            if aircraft_id:
+                url = f"{url}{aircraft_id}/"
+            
+            response = requests.get(
+                url,
+                headers=self.headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.warning(f"Aircraft info request failed: {response.status_code}")
+                return {}
+                
+        except Exception as e:
+            logger.error(f"Aircraft info error: {e}")
+            return {}
 
 
 # Convenience function for direct import

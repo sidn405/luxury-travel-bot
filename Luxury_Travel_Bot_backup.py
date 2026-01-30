@@ -21,7 +21,6 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.colors import HexColor, black, white
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak
 from reportlab.lib.enums import TA_CENTER
-from flight_scraper import FlightScraper
 
 # Setup logging
 env = os.getenv("ENV", "production")
@@ -1372,147 +1371,6 @@ def generate_filename(parameters, doc_type="itinerary"):
         dest = "-".join(parameters["destination"])[:30].replace(" ", "-")
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         return f"itinerary-{dest}-{timestamp}.pdf"
-    
-# ============================================================================
-# STEP 2: Add flight parameter extraction to extract_parameters function
-# ============================================================================
-
-def extract_flight_parameters(message: str) -> dict:
-    """
-    Extract flight-specific parameters from user message.
-    Add this function after your existing extract_parameters() function.
-    """
-    params = {
-        "origin": None,
-        "destination": None,
-        "departure_date": None,
-        "passengers": 4,  # Default
-        "aircraft_type": None,
-        "search_empty_legs": False
-    }
-    
-    message_lower = message.lower()
-    
-    # Check for empty leg requests
-    if "empty leg" in message_lower or "discount flight" in message_lower:
-        params["search_empty_legs"] = True
-    
-    # Extract passenger count
-    import re
-    passenger_patterns = [
-        r'(\d+)\s*(?:passenger|pax|people|person|traveler)',
-        r'for\s*(\d+)',
-        r'party\s*of\s*(\d+)'
-    ]
-    for pattern in passenger_patterns:
-        match = re.search(pattern, message_lower)
-        if match:
-            params["passengers"] = int(match.group(1))
-            break
-    
-    # Extract date
-    date_patterns = [
-        r'on\s+(\w+\s+\d{1,2})',
-        r'(\d{1,2}/\d{1,2}/\d{4})',
-        r'(\d{4}-\d{2}-\d{2})'
-    ]
-    for pattern in date_patterns:
-        match = re.search(pattern, message)
-        if match:
-            params["departure_date"] = match.group(1)
-            break
-    
-    # Extract origin and destination using common patterns
-    # Pattern: "from X to Y" or "X to Y"
-    route_patterns = [
-        r'from\s+([a-zA-Z\s]+?)\s+to\s+([a-zA-Z\s]+?)(?:\s|$|,|\.)',
-        r'([a-zA-Z\s]+?)\s+to\s+([a-zA-Z\s]+?)(?:\s|$|,|\.)',
-        r'between\s+([a-zA-Z\s]+?)\s+and\s+([a-zA-Z\s]+?)(?:\s|$|,|\.)',
-    ]
-    
-    for pattern in route_patterns:
-        match = re.search(pattern, message, re.IGNORECASE)
-        if match:
-            params["origin"] = match.group(1).strip()
-            params["destination"] = match.group(2).strip()
-            break
-    
-    # Aircraft type preferences
-    aircraft_keywords = {
-        "light jet": "Light Jet",
-        "midsize": "Midsize Jet", 
-        "heavy jet": "Heavy Jet",
-        "gulfstream": "Heavy Jet",
-        "citation": "Midsize Jet",
-        "phenom": "Light Jet"
-    }
-    
-    for keyword, aircraft_type in aircraft_keywords.items():
-        if keyword in message_lower:
-            params["aircraft_type"] = aircraft_type
-            break
-    
-    return params
-
-# ============================================================================
-# STEP 3: Add flight generation function
-# ============================================================================
-
-def generate_flight_quote(flight_params: dict) -> str:
-    """
-    Generate flight quote content.
-    Add this function alongside generate_itinerary() and generate_getaway().
-    """
-    scraper = FlightScraper()
-    
-    # Handle empty leg searches
-    if flight_params.get("search_empty_legs"):
-        empty_legs = scraper.search_empty_legs()
-        
-        if not empty_legs.get("empty_legs"):
-            return (
-                "✈️ **Empty Leg Deals**\n\n"
-                "Contact our partner Villers Jets for current empty leg availability:\n\n"
-                f"🔗 {empty_legs.get('affiliate_link', 'https://www.villersjets.com')}\n\n"
-                "Empty leg flights can save you up to 75% on private jet travel!"
-            )
-        
-        content = ["✈️ **Current Empty Leg Deals**\n"]
-        for deal in empty_legs["empty_legs"][:5]:
-            savings = f" (Save {deal['savings']}%)" if deal['savings'] > 0 else ""
-            content.append(
-                f"• {deal['route']} - {deal['aircraft']}\n"
-                f"  Date: {deal['date']} | Price: ${deal['price']:,.0f}{savings}\n"
-            )
-        
-        content.append(f"\n🔗 **Book Now:** {empty_legs['affiliate_link']}")
-        return "\n".join(content)
-    
-    # Regular flight search
-    origin = flight_params.get("origin")
-    destination = flight_params.get("destination")
-    
-    if not origin or not destination:
-        return (
-            "I'd be happy to help you find a private jet! Please provide:\n\n"
-            "• Departure city\n"
-            "• Destination city\n"
-            "• Travel date (optional)\n"
-            "• Number of passengers (optional)\n\n"
-            "Example: 'Find me a private jet from Miami to Aspen for 6 passengers'"
-        )
-    
-    # Search flights
-    results = scraper.search_flights(
-        origin=origin,
-        destination=destination,
-        departure_date=flight_params.get("departure_date"),
-        passengers=flight_params.get("passengers", 4),
-        aircraft_type=flight_params.get("aircraft_type")
-    )
-    
-    # Format for display
-    return scraper.format_for_chat(results)
 
 
 # ============================================================================
@@ -1531,7 +1389,7 @@ def health():
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    """Main chat endpoint - now with flight search!"""
+    """Main chat endpoint."""
     try:
         data = request.get_json()
         message = data.get("message", "")
@@ -1541,30 +1399,13 @@ def chat():
         
         logger.info(f"Chat: {message}")
         
+        # Extract parameters
+        parameters = extract_parameters(message)
         message_lower = message.lower()
         
-        # Check for flight-related keywords FIRST
-        flight_keywords = [
-            "private jet", "charter flight", "jet charter",
-            "flight", "fly", "aircraft", "empty leg"
-        ]
-        
-        if any(keyword in message_lower for keyword in flight_keywords):
-            # Handle flight request
-            flight_params = extract_flight_parameters(message)
-            content = generate_flight_quote(flight_params)
-            
-            return jsonify({
-                "response": content,
-                "parameters": flight_params,
-                "intent": "flight"
-            })
-        
-        # Extract standard travel parameters
-        parameters = extract_parameters(message)
-        
-        # Route to appropriate generator
+        # Route to appropriate generator (prioritize getaway keywords)
         if any(w in message_lower for w in ["getaway", "vacation", "escape", "weekend"]):
+            # Getaway has priority - more specific intent
             content = generate_getaway(parameters)
             doc_type = "getaway"
         elif any(w in message_lower for w in ["itinerary", "plan", "trip", "schedule", "day-by-day"]):
@@ -1572,13 +1413,10 @@ def chat():
             doc_type = "itinerary"
         else:
             return jsonify({
-                "response": (
-                    "Hi! I'm Dave from Eco Friendly Luxury Travels. I can:\n\n"
-                    "📅 Create detailed sustainable travel itineraries\n"
-                    "🏖️ Suggest eco-friendly luxury getaways\n"
-                    "✈️ Find private jet charters and empty leg deals\n\n"
-                    "What would you like to explore?"
-                ),
+                "response": "Hi! I'm Dave from Eco Friendly Luxury Travels. I can:\n\n"
+                           "📅 Create detailed sustainable travel itineraries\n"
+                           "🏖️ Suggest eco-friendly luxury getaways\n\n"
+                           "What would you like to explore?",
                 "parameters": parameters
             })
         
@@ -1604,56 +1442,6 @@ def chat():
     except Exception as e:
         logger.error(f"Chat error: {e}")
         logger.exception(e)
-        return jsonify({"error": str(e)}), 500
-
-# ============================================================================
-# STEP 5: (OPTIONAL) Add dedicated flight endpoint
-# ============================================================================
-
-@app.route("/api/flights/search", methods=["POST"])
-def search_flights():
-    """Dedicated endpoint for flight searches."""
-    try:
-        data = request.get_json()
-        
-        origin = data.get("origin")
-        destination = data.get("destination")
-        departure_date = data.get("departure_date")
-        passengers = data.get("passengers", 4)
-        aircraft_type = data.get("aircraft_type")
-        
-        if not origin or not destination:
-            return jsonify({"error": "Origin and destination required"}), 400
-        
-        scraper = FlightScraper()
-        results = scraper.search_flights(
-            origin=origin,
-            destination=destination,
-            departure_date=departure_date,
-            passengers=passengers,
-            aircraft_type=aircraft_type
-        )
-        
-        return jsonify(results)
-        
-    except Exception as e:
-        logger.error(f"Flight search error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/flights/empty-legs", methods=["GET"])
-def get_empty_legs():
-    """Get current empty leg deals."""
-    try:
-        region = request.args.get("region")
-        
-        scraper = FlightScraper()
-        results = scraper.search_empty_legs(region=region)
-        
-        return jsonify(results)
-        
-    except Exception as e:
-        logger.error(f"Empty leg error: {e}")
         return jsonify({"error": str(e)}), 500
 
 

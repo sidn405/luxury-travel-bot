@@ -4,6 +4,9 @@ Test Flight Scraper - Run this locally before deploying
 
 Usage:
     python test_flight_scraper.py
+
+Note: Tests will use fallback mode if AVIAPAGES_API_KEY is not set.
+Fallback mode still generates valid Villers Jets affiliate links.
 """
 
 import os
@@ -11,11 +14,12 @@ import sys
 
 # Set test environment variables if not already set
 if not os.getenv("AVIAPAGES_API_KEY"):
-    print("⚠️  AVIAPAGES_API_KEY not set. Using test mode.")
+    print("⚠️  AVIAPAGES_API_KEY not set. Using test mode (fallback).")
     os.environ["AVIAPAGES_API_KEY"] = "test_key"
 
 if not os.getenv("VILLERS_JETS_AFFILIATE_URL"):
     print("⚠️  VILLERS_JETS_AFFILIATE_URL not set. Using placeholder.")
+    print("    Replace with: https://www.villersjets.com/?ref=YOUR_AFFILIATE_ID")
     os.environ["VILLERS_JETS_AFFILIATE_URL"] = "https://www.villersjets.com/?ref=TEST123"
 
 from flight_scraper import FlightScraper, search_private_jets
@@ -148,6 +152,27 @@ def test_villers_jets_link():
         print(f"✅ {origin} → {dest}")
         print(f"   {link}\n")
 
+def test_aircraft_info():
+    """Test aircraft information endpoint."""
+    print_section("TEST 7: Aircraft Information")
+    
+    scraper = FlightScraper()
+    print("Fetching aircraft catalog...")
+    
+    aircraft_data = scraper.get_aircraft_info()
+    
+    if aircraft_data:
+        print(f"✅ Retrieved aircraft information")
+        if isinstance(aircraft_data, dict):
+            if "results" in aircraft_data:
+                print(f"   Found {len(aircraft_data.get('results', []))} aircraft")
+            elif "data" in aircraft_data:
+                print(f"   Found {len(aircraft_data.get('data', []))} aircraft")
+        elif isinstance(aircraft_data, list):
+            print(f"   Found {len(aircraft_data)} aircraft")
+    else:
+        print("ℹ️  No aircraft data available (may require paid tier)")
+
 def run_all_tests():
     """Run all tests."""
     print("""
@@ -164,6 +189,7 @@ def run_all_tests():
         test_empty_legs()
         test_parameter_extraction()
         test_villers_jets_link()
+        test_aircraft_info()
         
         print_section("✅ ALL TESTS COMPLETED")
         print("""
