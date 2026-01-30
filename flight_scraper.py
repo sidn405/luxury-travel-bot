@@ -324,14 +324,14 @@ class FlightScraper:
             return f"No flights found from {flight_data['origin']} to {flight_data['destination']}."
         
         output = [
-            f"✈️ **Private Jet Options: {flight_data['origin']} → {flight_data['destination']}**\n"
+            f"✈️ Private Jet Options: {flight_data['origin']} → {flight_data['destination']}\n"
         ]
         
         for i, flight in enumerate(flight_data["flights"], 1):
             price_str = f"${flight['price']:,.0f}" if flight['price'] > 0 else "Call for Quote"
             
             output.append(
-                f"**{i}. {flight['aircraft']}**\n"
+                f"{i}. {flight['aircraft']}\n"
                 f"   • Type: {flight['aircraft_type']}\n"
                 f"   • Passengers: Up to {flight['passengers']}\n"
                 f"   • Flight Time: {flight['flight_time']}\n"
@@ -340,8 +340,8 @@ class FlightScraper:
             )
         
         output.append(
-            f"\n🔗 **Book Now:** {flight_data['affiliate_link']}\n"
-            f"\n💚 *Experience eco-conscious luxury travel with our partner Villers Jets*"
+            f"\n🔗 Book Now: {flight_data['affiliate_link']}\n"
+            f"\n💚 Experience eco-conscious luxury travel with our partner Villers Jets"
         )
         
         if flight_data.get("note"):
