@@ -43,7 +43,7 @@ CORS(app, resources={
     r"/api/*": {
         "origins": [
             "https://www.ecofriendlyluxurytravels.com",  # ⚠️ CHANGE THIS
-            "http://www.your-wordpress-site.com",
+            "http://www.ecofriendlyluxurytravels.com",
         ]
     }
 })

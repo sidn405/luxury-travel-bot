@@ -451,7 +451,7 @@ Add this to your website's Private Jets page
             resultsContainer.classList.add('visible');
             
             try {
-                const response = await fetch('/api/flights/empty-legs');
+                const response = await fetch('https://luxury-travel-bot-production.up.railway.app/api/flights/empty-legs')
                 const data = await response.json();
                 
                 if (data.empty_legs && data.empty_legs.length > 0) {
