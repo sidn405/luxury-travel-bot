@@ -1,6 +1,6 @@
 <!-- 
-WORDPRESS READY - PRIVATE JET SEARCH WIDGET
-Just copy this entire block and paste into WordPress Custom HTML block
+UPDATED WORDPRESS WIDGET - WITH ONE-WAY & ROUND-TRIP OPTIONS
+Replace your current Custom HTML block with this version
 -->
 
 <!-- ========== STYLES ========== -->
@@ -9,7 +9,7 @@ Just copy this entire block and paste into WordPress Custom HTML block
     max-width: 800px;
     margin: 40px auto;
     padding: 30px;
-    background: linear-gradient(135deg, #004444 0%, #006666 100%);
+    background: linear-gradient(135deg, #0d5f5f 0%, #0a7a7a 100%);
     border-radius: 20px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.2);
     color: white;
@@ -28,10 +28,58 @@ Just copy this entire block and paste into WordPress Custom HTML block
     opacity: 0.9;
 }
 
+/* ✅ NEW: Trip Type Selector */
+.trip-type-selector {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-bottom: 25px;
+    background: rgba(255,255,255,0.1);
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.trip-type-option {
+    flex: 1;
+    max-width: 200px;
+}
+
+.trip-type-option input[type="radio"] {
+    display: none;
+}
+
+.trip-type-option label {
+    display: block;
+    padding: 12px 20px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: 600;
+}
+
+.trip-type-option input[type="radio"]:checked + label {
+    background: #FFD700;
+    color: #0a7a7a;
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+}
+
+.trip-type-option label:hover {
+    background: rgba(255,255,255,0.3);
+}
+
 .jet-form {
     background: rgba(255,255,255,0.1);
     padding: 25px;
     border-radius: 15px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
 }
 
 .jet-field {
@@ -52,6 +100,15 @@ Just copy this entire block and paste into WordPress Custom HTML block
     border-radius: 8px;
     font-size: 1em;
     box-sizing: border-box;
+}
+
+/* ✅ NEW: Return date field (hidden by default) */
+.return-date-field {
+    display: none;
+}
+
+.return-date-field.visible {
+    display: block;
 }
 
 .jet-btn {
@@ -86,28 +143,58 @@ Just copy this entire block and paste into WordPress Custom HTML block
     margin: 15px 0;
     background: #f8f9fa;
     border-radius: 8px;
-    border-left: 4px solid #004444;
+    border-left: 4px solid #0d5f5f;
+}
+
+/* ✅ NEW: Flight direction headers */
+.flight-direction {
+    background: #0d5f5f;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    margin: 25px 0 15px 0;
+    font-weight: 600;
+    font-size: 1.1em;
 }
 
 .jet-link {
     display: inline-block;
-    padding: 12px 24px;
-    background: #004444;
-    color: white !important;
+    padding: 15px 30px;
+    background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
+    color: #1a1a1a !important;
     text-decoration: none;
     border-radius: 8px;
     margin-top: 15px;
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 1.1em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+    transition: all 0.3s;
 }
 
 .jet-link:hover {
-    background: #006666;
+    background: linear-gradient(135deg, #f4d03f 0%, #d4af37 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.6);
 }
 
 @media (max-width: 768px) {
     .jet-widget {
         margin: 20px 10px;
         padding: 20px;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .trip-type-selector {
+        flex-direction: column;
+    }
+    
+    .trip-type-option {
+        max-width: 100%;
     }
 }
 </style>
@@ -117,20 +204,42 @@ Just copy this entire block and paste into WordPress Custom HTML block
     <h2>✈️ Private Jet Charter Search</h2>
     <p>Find the perfect aircraft for your journey</p>
     
+    <!-- ✅ NEW: Trip Type Selector -->
+    <div class="trip-type-selector">
+        <div class="trip-type-option">
+            <input type="radio" id="one-way" name="trip-type" value="one-way" checked>
+            <label for="one-way">➡️ One-Way</label>
+        </div>
+        <div class="trip-type-option">
+            <input type="radio" id="round-trip" name="trip-type" value="round-trip">
+            <label for="round-trip">🔄 Round-Trip</label>
+        </div>
+    </div>
+    
     <form class="jet-form" onsubmit="return searchJets(event)">
-        <div class="jet-field">
-            <label>✈️ Departure From</label>
-            <input type="text" id="jet-origin" placeholder="Miami, New York, Los Angeles..." required>
+        <div class="form-row">
+            <div class="jet-field">
+                <label>✈️ Departure From</label>
+                <input type="text" id="jet-origin" placeholder="Miami, New York, Los Angeles..." required>
+            </div>
+            
+            <div class="jet-field">
+                <label>📍 Flying To</label>
+                <input type="text" id="jet-destination" placeholder="Aspen, Dubai, Bali..." required>
+            </div>
         </div>
         
-        <div class="jet-field">
-            <label>📍 Flying To</label>
-            <input type="text" id="jet-destination" placeholder="Aspen, Dubai, Bali..." required>
-        </div>
-        
-        <div class="jet-field">
-            <label>📅 Departure Date (Optional)</label>
-            <input type="date" id="jet-date">
+        <div class="form-row">
+            <div class="jet-field">
+                <label>📅 Departure Date</label>
+                <input type="date" id="jet-departure-date" required>
+            </div>
+            
+            <!-- ✅ NEW: Return Date (shows only for round-trip) -->
+            <div class="jet-field return-date-field" id="return-date-container">
+                <label>📅 Return Date</label>
+                <input type="date" id="jet-return-date">
+            </div>
         </div>
         
         <div class="jet-field">
@@ -145,7 +254,7 @@ Just copy this entire block and paste into WordPress Custom HTML block
             </select>
         </div>
         
-        <button type="submit" class="jet-btn">🔍 Search Available Jets</button>
+        <button type="submit" class="jet-btn" id="search-btn">🔍 Search Available Jets</button>
     </form>
     
     <div id="jet-results" class="jet-results"></div>
@@ -156,13 +265,35 @@ Just copy this entire block and paste into WordPress Custom HTML block
 // ⚠️ IMPORTANT: Update this URL to your Railway app
 const JET_API_URL = 'https://luxury-travel-bot-production.up.railway.app/api/flights/search';
 
+// ✅ NEW: Handle trip type changes
+document.querySelectorAll('input[name="trip-type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const returnDateContainer = document.getElementById('return-date-container');
+        const returnDateInput = document.getElementById('jet-return-date');
+        const searchBtn = document.getElementById('search-btn');
+        
+        if (this.value === 'round-trip') {
+            returnDateContainer.classList.add('visible');
+            returnDateInput.required = true;
+            searchBtn.textContent = '🔍 Search Round-Trip Flights';
+        } else {
+            returnDateContainer.classList.remove('visible');
+            returnDateInput.required = false;
+            returnDateInput.value = '';
+            searchBtn.textContent = '🔍 Search Available Jets';
+        }
+    });
+});
+
 async function searchJets(event) {
     event.preventDefault();
     
     // Get form values
+    const tripType = document.querySelector('input[name="trip-type"]:checked').value;
     const origin = document.getElementById('jet-origin').value;
     const destination = document.getElementById('jet-destination').value;
-    const date = document.getElementById('jet-date').value;
+    const departureDate = document.getElementById('jet-departure-date').value;
+    const returnDate = document.getElementById('jet-return-date').value;
     const passengers = document.getElementById('jet-passengers').value;
     
     // Show loading
@@ -171,32 +302,19 @@ async function searchJets(event) {
     resultsDiv.style.display = 'block';
     
     try {
-        // Call API
-        const response = await fetch(JET_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                origin: origin,
-                destination: destination,
-                departure_date: date || null,
-                passengers: parseInt(passengers)
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Search failed');
+        if (tripType === 'round-trip') {
+            // ✅ NEW: Search both directions for round-trip
+            await searchRoundTrip(origin, destination, departureDate, returnDate, passengers);
+        } else {
+            // One-way search
+            await searchOneWay(origin, destination, departureDate, passengers);
         }
-        
-        const data = await response.json();
-        displayResults(data);
         
     } catch (error) {
         console.error('Error:', error);
         resultsDiv.innerHTML = `
             <h3 style="color: #dc3545;">⚠️ Search Error</h3>
-            <p>Unable to search flights at this time. Please contact us directly for assistance.</p>
+            <p>Unable to search flights at this time. Please contact us directly.</p>
             <a href="https://www.villiersjets.com/?id=7275" target="_blank" class="jet-link">
                 Contact Villers Jets →
             </a>
@@ -204,13 +322,69 @@ async function searchJets(event) {
     }
 }
 
-function displayResults(data) {
+// ✅ NEW: One-way search
+async function searchOneWay(origin, destination, date, passengers) {
+    const response = await fetch(JET_API_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            origin: origin,
+            destination: destination,
+            departure_date: date,
+            passengers: parseInt(passengers)
+        })
+    });
+    
+    if (!response.ok) throw new Error('Search failed');
+    
+    const data = await response.json();
+    displayOneWayResults(data);
+}
+
+// ✅ NEW: Round-trip search
+async function searchRoundTrip(origin, destination, departureDate, returnDate, passengers) {
+    // Search outbound flight
+    const outboundResponse = await fetch(JET_API_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            origin: origin,
+            destination: destination,
+            departure_date: departureDate,
+            passengers: parseInt(passengers)
+        })
+    });
+    
+    // Search return flight
+    const returnResponse = await fetch(JET_API_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            origin: destination,  // Reversed
+            destination: origin,  // Reversed
+            departure_date: returnDate,
+            passengers: parseInt(passengers)
+        })
+    });
+    
+    if (!outboundResponse.ok || !returnResponse.ok) {
+        throw new Error('Search failed');
+    }
+    
+    const outboundData = await outboundResponse.json();
+    const returnData = await returnResponse.json();
+    
+    displayRoundTripResults(outboundData, returnData);
+}
+
+// ✅ NEW: Display one-way results
+function displayOneWayResults(data) {
     const resultsDiv = document.getElementById('jet-results');
     
     if (!data.flights || data.flights.length === 0) {
         resultsDiv.innerHTML = `
             <h3>No Exact Matches Found</h3>
-            <p>Contact our partner Villers Jets for personalized quotes on this route.</p>
+            <p>Contact Villers Jets for personalized quotes on this route.</p>
             <a href="${data.affiliate_link || 'https://www.villiersjets.com/?id=7275'}" 
                target="_blank" 
                class="jet-link">
@@ -226,8 +400,54 @@ function displayResults(data) {
         </h3>
     `;
     
-    // Display each flight
-    data.flights.forEach((flight, index) => {
+    html += formatFlights(data.flights);
+    html += formatBookingLink(data.affiliate_link);
+    
+    resultsDiv.innerHTML = html;
+}
+
+// ✅ NEW: Display round-trip results
+function displayRoundTripResults(outboundData, returnData) {
+    const resultsDiv = document.getElementById('jet-results');
+    
+    let html = `
+        <h3 style="margin-top: 0;">
+            Round-Trip Flight Options
+        </h3>
+    `;
+    
+    // Outbound flights
+    html += `<div class="flight-direction">
+        ➡️ Outbound: ${outboundData.origin} → ${outboundData.destination}
+    </div>`;
+    
+    if (outboundData.flights && outboundData.flights.length > 0) {
+        html += formatFlights(outboundData.flights);
+    } else {
+        html += '<p>No outbound flights available. Contact Villers Jets for options.</p>';
+    }
+    
+    // Return flights
+    html += `<div class="flight-direction">
+        ⬅️ Return: ${returnData.origin} → ${returnData.destination}
+    </div>`;
+    
+    if (returnData.flights && returnData.flights.length > 0) {
+        html += formatFlights(returnData.flights);
+    } else {
+        html += '<p>No return flights available. Contact Villers Jets for options.</p>';
+    }
+    
+    html += formatBookingLink(outboundData.affiliate_link);
+    
+    resultsDiv.innerHTML = html;
+}
+
+// Format individual flights
+function formatFlights(flights) {
+    let html = '';
+    
+    flights.forEach((flight, index) => {
         const price = flight.price > 0 
             ? `$${flight.price.toLocaleString()}` 
             : 'Request Quote';
@@ -245,10 +465,14 @@ function displayResults(data) {
         `;
     });
     
-    // Add booking link
-    html += `
+    return html;
+}
+
+// Format booking link
+function formatBookingLink(affiliateLink) {
+    return `
         <div style="text-align: center; margin-top: 20px;">
-            <a href="${data.affiliate_link}" 
+            <a href="${affiliateLink}" 
                target="_blank" 
                rel="noopener noreferrer"
                class="jet-link">
@@ -259,34 +483,42 @@ function displayResults(data) {
             </p>
         </div>
     `;
-    
-    resultsDiv.innerHTML = html;
 }
 
-// Set minimum date to today
+// Set minimum dates
 document.addEventListener('DOMContentLoaded', function() {
-    const dateInput = document.getElementById('jet-date');
-    if (dateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        dateInput.setAttribute('min', today);
+    const today = new Date().toISOString().split('T')[0];
+    const departureDateInput = document.getElementById('jet-departure-date');
+    const returnDateInput = document.getElementById('jet-return-date');
+    
+    if (departureDateInput) {
+        departureDateInput.setAttribute('min', today);
+        
+        // Update return date minimum when departure date changes
+        departureDateInput.addEventListener('change', function() {
+            returnDateInput.setAttribute('min', this.value);
+            
+            // Clear return date if it's before departure date
+            if (returnDateInput.value && returnDateInput.value < this.value) {
+                returnDateInput.value = '';
+            }
+        });
+    }
+    
+    if (returnDateInput) {
+        returnDateInput.setAttribute('min', today);
     }
 });
 </script>
 
 <!-- 
-INSTALLATION INSTRUCTIONS:
-
-1. Copy this ENTIRE file
-2. Go to WordPress → Pages → Add New (or edit existing page)
-3. Click the "+" button → Search for "Custom HTML"
-4. Paste this code
-5. UPDATE LINE 142: Change the API URL to your Railway URL
-6. Click "Publish"
-7. View your page!
-
-IMPORTANT: 
-- Make sure to update the JET_API_URL variable (line 142)
-- Your Railway app must have CORS enabled for your WordPress domain
-
-Need help? The WORDPRESS_INTEGRATION.md file has full details!
+INSTALLATION:
+1. Copy this entire file
+2. Edit your Private Jets page in WordPress
+3. Delete the old Custom HTML block
+4. Add new Custom HTML block
+5. Paste this code
+6. Update JET_API_URL (line 241) to your Railway URL
+7. Click Update
+8. Test both one-way and round-trip!
 -->
