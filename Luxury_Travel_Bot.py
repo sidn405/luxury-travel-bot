@@ -39,12 +39,17 @@ logger = logging.getLogger("eco_friendly_luxury_travels")
 app = Flask(__name__, 
             static_folder='templates/static',
             static_url_path='/static')
+# Enable CORS for WordPress
 CORS(app, resources={
     r"/api/*": {
         "origins": [
-            "https://www.ecofriendlyluxurytravels.com",  # ⚠️ CHANGE THIS
-            "http://www.ecofriendlyluxurytravels.com",
-        ]
+            "https://ecofriendlyluxurytravels.com",
+            "http://ecofriendlyluxurytravels.com",
+            "https://www.ecofriendlyluxurytravels.com",
+            "http://www.ecofriendlyluxurytravels.com"
+        ],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
     }
 })
 
