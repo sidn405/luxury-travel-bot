@@ -1540,17 +1540,16 @@ def chat():
             return jsonify({"error": "Message required"}), 400
         
         logger.info(f"Chat: {message}")
-        
         message_lower = message.lower()
         
-        # Check for flight-related keywords FIRST
+        # ⚠️ THIS MUST COME FIRST - CHECK FOR FLIGHTS
         flight_keywords = [
-            "private jet", "charter flight", "jet charter",
-            "flight", "fly", "aircraft", "empty leg"
+            "private jet", "charter flight", "jet charter", "charter",
+            "flight", "fly", "aircraft", "empty leg", "jet"  # ← "jet" is here
         ]
         
         if any(keyword in message_lower for keyword in flight_keywords):
-            # Handle flight request
+            logger.info("✈️ Flight request detected")  # ← Add this for debugging
             flight_params = extract_flight_parameters(message)
             content = generate_flight_quote(flight_params)
             
@@ -1571,6 +1570,7 @@ def chat():
             content = generate_itinerary(parameters)
             doc_type = "itinerary"
         else:
+            # ⚠️ This default response should only show if NO keywords match
             return jsonify({
                 "response": (
                     "Hi! I'm Dave from Eco Friendly Luxury Travels. I can:\n\n"
