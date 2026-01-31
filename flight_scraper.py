@@ -36,31 +36,126 @@ VILLERS_JETS_AFFILIATE_URL = os.getenv(
     "https://www.villersjets.com/?ref=YOUR_AFFILIATE_ID"
 )
 
-# IATA Airport Codes for luxury travel destinations
-LUXURY_AIRPORTS = {
-    "miami": "MIA",
-    "new york": "TEB",  # Teterboro - private jet airport
-    "los angeles": "VNY",  # Van Nuys - private jet airport
-    "las vegas": "LAS",
-    "aspen": "ASE",
-    "dubai": "DXB",
-    "london": "LTN",  # Luton - popular private jet airport
-    "paris": "LBG",  # Le Bourget - private jet airport
-    "monaco": "MCM",
-    "ibiza": "IBZ",
-    "maldives": "MLE",
-    "bali": "DPS",
-    "mykonos": "JMK",
-    "st barths": "SBH",
-    "cabo": "SJD",
-    "bahamas": "PID",
-    "tulum": "CUN",
-    "nice": "NCE",
-    "zurich": "ZRH",
-    "tokyo": "NRT",
-}
+def _get_airport_codes(self, location: str) -> list:
+    """
+    Get ALL possible airport codes for a location.
+    Returns list of codes to check (prioritized by private jet usage).
+    
+    This way we match MORE routes on Villers Jets!
+    """
+    
+    location_lower = location.lower().strip()
+    
+    # Multi-airport cities (private jet + commercial with FBOs)
+    # Format: "city": [primary_private_jet, alternatives...]
+    airport_mapping = {
+        # NEW ORLEANS - Multiple options
+        "new orleans": ["NEW", "MSY"],  # Lakefront (private), Armstrong (FBO)
+        
+        # NEW YORK - Multiple options
+        "new york": ["TEB", "HPN", "FRG", "JFK", "EWR", "LGA"],
+        "teterboro": ["TEB"],
+        "white plains": ["HPN"],
+        
+        # LOS ANGELES - Multiple options  
+        "los angeles": ["VNY", "BUR", "SMO", "LGB", "LAX"],
+        "van nuys": ["VNY"],
+        "burbank": ["BUR"],
+        "santa monica": ["SMO"],
+        
+        # MIAMI - Multiple options
+        "miami": ["OPF", "FXE", "MIA", "FLL"],
+        "fort lauderdale": ["FXE", "FLL"],
+        
+        # CHICAGO - Multiple options
+        "chicago": ["PWK", "MDW", "ORD"],
+        
+        # DALLAS - Multiple options
+        "dallas": ["ADS", "DAL", "DFW"],
+        "addison": ["ADS"],
+        
+        # ATLANTA - Multiple options
+        "atlanta": ["PDK", "ATL"],
+        
+        # HOUSTON - Multiple options
+        "houston": ["HOU", "IAH"],
+        
+        # LAS VEGAS - Multiple options
+        "las vegas": ["VGT", "LAS", "HND"],
+        "vegas": ["VGT", "LAS"],
+        
+        # PHOENIX/SCOTTSDALE - Multiple options
+        "phoenix": ["SDL", "PHX"],
+        "scottsdale": ["SDL", "PHX"],
+        
+        # SAN FRANCISCO - Multiple options
+        "san francisco": ["SFO", "OAK", "SJC", "HWD"],
+        
+        # WASHINGTON DC - Multiple options
+        "washington": ["IAD", "DCA"],
+        "dc": ["DCA", "IAD"],
+        
+        # BOSTON - Multiple options
+        "boston": ["BED", "BOS"],
+        
+        # DENVER - Multiple options
+        "denver": ["APA", "DEN"],
+        
+        # Single airport cities (but still return as list)
+        "san antonio": ["SAT"],
+        "aspen": ["ASE"],
+        "nashville": ["BNA"],
+        "charlotte": ["CLT"],
+        "philadelphia": ["PHL"],
+        "seattle": ["SEA", "BFI"],
+        "orlando": ["MCO", "ISM"],
+        "tampa": ["TPA"],
+        "west palm beach": ["PBI"],
+        "palm beach": ["PBI"],
+        
+        # International
+        "dubai": ["DXB", "DWC"],
+        "london": ["LTN", "FAB", "LHR", "LCY"],
+        "paris": ["LBG", "CDG"],
+        "geneva": ["GVA"],
+        "zurich": ["ZRH"],
+        "nice": ["NCE"],
+        "ibiza": ["IBZ"],
+        "tokyo": ["NRT", "HND"],
+        "hong kong": ["HKG"],
+        "singapore": ["SIN"],
+        "bali": ["DPS"],
+        "cabo": ["SJD"],
+        "cancun": ["CUN"],
+    }
+    
+    # Try exact match first
+    if location_lower in airport_mapping:
+        codes = airport_mapping[location_lower]
+        logger.info(f"Resolved '{location}' to multiple codes: {codes}")
+        return codes
+    
+    # Try partial match
+    for city, codes in airport_mapping.items():
+        if city in location_lower or location_lower in city:
+            logger.info(f"Partially resolved '{location}' to codes: {codes} via '{city}'")
+            return codes
+    
+    # Fallback - single code
+    fallback = location.upper()[:3]
+    logger.warning(f"Could not resolve '{location}', using fallback: [{fallback}]")
+    return [fallback]
 
 
+def _get_iata_code(self, location: str) -> str:
+    """
+    Get primary airport code for a location.
+    Returns first (prioritized) code from the list.
+    
+    Kept for backward compatibility.
+    """
+    codes = self._get_airport_codes(location)
+    return codes[0]
 
 
 def format_for_chat(self, flight_data: Dict) -> str:
@@ -113,29 +208,14 @@ class FlightScraper:
     
     def __init__(self):
         self.api_key = AVIAPAGES_API_KEY
+        self.villers_jets_url = VILLERS_JETS_AFFILIATE_URL
+        self.villers_affiliate_id = '7275' 
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
         
-    def get_airport_code(self, location: str) -> Optional[str]:
-        """Convert location name to IATA airport code."""
-        location_lower = location.lower()
-        
-        # Direct match
-        if location_lower in LUXURY_AIRPORTS:
-            return LUXURY_AIRPORTS[location_lower]
-        
-        # Partial match
-        for key, code in LUXURY_AIRPORTS.items():
-            if key in location_lower or location_lower in key:
-                return code
-        
-        # If exact code provided (3 letters)
-        if len(location) == 3:
-            return location.upper()
-        
-        return None
+    
     
     def search_flights(
         self,
@@ -427,56 +507,60 @@ class FlightScraper:
     def _check_villers_for_route(self, origin: str, destination: str) -> Optional[List[Dict]]:
         """
         Check if Villers Jets has empty legs matching this route.
-        Returns list of matching flights or None.
+        NOW CHECKS ALL AIRPORT COMBINATIONS!
         """
         if not VILLERS_SCRAPER_AVAILABLE:
             return None
         
         try:
-            logger.info(f"🔍 Checking Villers Jets for empty legs on {origin} → {destination}")
-            villers_scraper = VillersJetsScraper(
-                affiliate_id=self.villers_affiliate_id.split('=')[-1] if '=' in self.villers_affiliate_id else '7275'
-            )
+            # Get ALL possible airport codes for origin and destination
+            origin_codes = self._get_airport_codes(origin)
+            dest_codes = self._get_airport_codes(destination)
             
+            logger.info(f"🔍 Checking Villers Jets for {origin} ({origin_codes}) → {destination} ({dest_codes})")
+            
+            villers_scraper = VillersJetsScraper(affiliate_id='7275')
             empty_legs = villers_scraper.scrape_empty_legs()
             
             if not empty_legs:
+                logger.info("No empty legs found on Villers Jets")
                 return None
             
-            # Find matching routes
+            # Check all combinations
             matching = []
-            origin_upper = origin.upper()
-            dest_upper = destination.upper()
-            
             for leg in empty_legs:
                 leg_origin = leg['origin'].upper()
                 leg_dest = leg['destination'].upper()
                 
-                # Check if route matches (with some flexibility)
-                if (origin_upper in leg_origin or leg_origin in origin_upper) and \
-                (dest_upper in leg_dest or leg_dest in dest_upper):
+                # Check if ANY of our origin codes match AND ANY of our dest codes match
+                origin_match = any(code in leg_origin or leg_origin in code for code in origin_codes)
+                dest_match = any(code in leg_dest or leg_dest in code for code in dest_codes)
+                
+                if origin_match and dest_match:
+                    logger.info(f"✅ MATCH FOUND: {leg['route']} matches {origin} → {destination}")
                     matching.append({
                         "aircraft": leg['aircraft'],
                         "aircraft_type": "Private Jet (Empty Leg)",
                         "price": leg['price'],
                         "currency": "USD",
-                        "passengers": 8,  # Default estimate
+                        "passengers": 8,
                         "flight_time": leg['date'],
                         "operator": "Villers Jets",
                         "savings": leg['savings'],
-                        "note": f"Save {leg['savings']}% on this empty leg!"
+                        "note": f"🔥 Save {leg['savings']}% on this empty leg!"
                     })
             
             if matching:
                 logger.info(f"✅ Found {len(matching)} matching empty legs!")
                 return matching
             
+            logger.info("No matching empty legs for this specific route")
             return None
             
         except Exception as e:
             logger.error(f"Error checking Villers for route: {e}")
             return None
-  
+    
     def search_empty_legs(self, region: Optional[str] = None) -> Dict:
         """
         Search for empty leg deals.
