@@ -36,187 +36,173 @@ VILLERS_JETS_AFFILIATE_URL = os.getenv(
     "https://www.villersjets.com/?ref=YOUR_AFFILIATE_ID"
 )
 
-def _get_airport_codes(self, location: str) -> list:
-    """
-    Get ALL possible airport codes for a location.
-    Returns list of codes to check (prioritized by private jet usage).
-    
-    This way we match MORE routes on Villers Jets!
-    """
-    
-    location_lower = location.lower().strip()
-    
-    # Multi-airport cities (private jet + commercial with FBOs)
-    # Format: "city": [primary_private_jet, alternatives...]
-    airport_mapping = {
-        # NEW ORLEANS - Multiple options
-        "new orleans": ["NEW", "MSY"],  # Lakefront (private), Armstrong (FBO)
-        
-        # NEW YORK - Multiple options
-        "new york": ["TEB", "HPN", "FRG", "JFK", "EWR", "LGA"],
-        "teterboro": ["TEB"],
-        "white plains": ["HPN"],
-        
-        # LOS ANGELES - Multiple options  
-        "los angeles": ["VNY", "BUR", "SMO", "LGB", "LAX"],
-        "van nuys": ["VNY"],
-        "burbank": ["BUR"],
-        "santa monica": ["SMO"],
-        
-        # MIAMI - Multiple options
-        "miami": ["OPF", "FXE", "MIA", "FLL"],
-        "fort lauderdale": ["FXE", "FLL"],
-        
-        # CHICAGO - Multiple options
-        "chicago": ["PWK", "MDW", "ORD"],
-        
-        # DALLAS - Multiple options
-        "dallas": ["ADS", "DAL", "DFW"],
-        "addison": ["ADS"],
-        
-        # ATLANTA - Multiple options
-        "atlanta": ["PDK", "ATL"],
-        
-        # HOUSTON - Multiple options
-        "houston": ["HOU", "IAH"],
-        
-        # LAS VEGAS - Multiple options
-        "las vegas": ["VGT", "LAS", "HND"],
-        "vegas": ["VGT", "LAS"],
-        
-        # PHOENIX/SCOTTSDALE - Multiple options
-        "phoenix": ["SDL", "PHX"],
-        "scottsdale": ["SDL", "PHX"],
-        
-        # SAN FRANCISCO - Multiple options
-        "san francisco": ["SFO", "OAK", "SJC", "HWD"],
-        
-        # WASHINGTON DC - Multiple options
-        "washington": ["IAD", "DCA"],
-        "dc": ["DCA", "IAD"],
-        
-        # BOSTON - Multiple options
-        "boston": ["BED", "BOS"],
-        
-        # DENVER - Multiple options
-        "denver": ["APA", "DEN"],
-        
-        # Single airport cities (but still return as list)
-        "san antonio": ["SAT"],
-        "aspen": ["ASE"],
-        "nashville": ["BNA"],
-        "charlotte": ["CLT"],
-        "philadelphia": ["PHL"],
-        "seattle": ["SEA", "BFI"],
-        "orlando": ["MCO", "ISM"],
-        "tampa": ["TPA"],
-        "west palm beach": ["PBI"],
-        "palm beach": ["PBI"],
-        
-        # International
-        "dubai": ["DXB", "DWC"],
-        "london": ["LTN", "FAB", "LHR", "LCY"],
-        "paris": ["LBG", "CDG"],
-        "geneva": ["GVA"],
-        "zurich": ["ZRH"],
-        "nice": ["NCE"],
-        "ibiza": ["IBZ"],
-        "tokyo": ["NRT", "HND"],
-        "hong kong": ["HKG"],
-        "singapore": ["SIN"],
-        "bali": ["DPS"],
-        "cabo": ["SJD"],
-        "cancun": ["CUN"],
-    }
-    
-    # Try exact match first
-    if location_lower in airport_mapping:
-        codes = airport_mapping[location_lower]
-        logger.info(f"Resolved '{location}' to multiple codes: {codes}")
-        return codes
-    
-    # Try partial match
-    for city, codes in airport_mapping.items():
-        if city in location_lower or location_lower in city:
-            logger.info(f"Partially resolved '{location}' to codes: {codes} via '{city}'")
-            return codes
-    
-    # Fallback - single code
-    fallback = location.upper()[:3]
-    logger.warning(f"Could not resolve '{location}', using fallback: [{fallback}]")
-    return [fallback]
-
-
-def _get_iata_code(self, location: str) -> str:
-    """
-    Get primary airport code for a location.
-    Returns first (prioritized) code from the list.
-    
-    Kept for backward compatibility.
-    """
-    codes = self._get_airport_codes(location)
-    return codes[0]
-
-
-def format_for_chat(self, flight_data: Dict) -> str:
-    """Format flight results for chat display with clear messaging."""
-    
-    if not flight_data.get("flights"):
-        return f"No flights found from {flight_data['origin']} to {flight_data['destination']}."
-    
-    # Check if this is fallback data
-    is_fallback = flight_data.get("is_fallback", False)
-    
-    if is_fallback:
-        # Clear messaging for generic options
-        output = [
-            f"✈️ Private Jet Charter: {flight_data['origin']} → {flight_data['destination']}\n",
-            "📋 Example Aircraft Available:\n"
-        ]
-    else:
-        # Real availability
-        output = [
-            f"✈️ Available Private Jets: {flight_data['origin']} → {flight_data['destination']}\n"
-        ]
-    
-    for i, flight in enumerate(flight_data["flights"], 1):
-        price_str = f"${flight['price']:,.0f}" if flight['price'] > 0 else "Request Quote"
-        
-        output.append(
-            f"{i}. {flight['aircraft']}\n"
-            f"   • Type: {flight['aircraft_type']}\n"
-            f"   • Passengers: Up to {flight['passengers']}\n"
-            f"   • Flight Time: {flight['flight_time']}\n"
-            f"   • Price: {price_str}\n"
-        )
-    
-    # Make link clearly clickable
-    output.append(
-        f"\n🔗 Get Real-Time Quote & Book:\n"
-        f"{flight_data['affiliate_link']}\n"
-    )
-    
-    output.append("\n💚 Eco-conscious luxury travel with Villers Jets")
-    
-    if flight_data.get("note"):
-        output.append(f"\n{flight_data['note']}")
-    
-    return "\n".join(output)
-
 class FlightScraper:
     """Scrape and format private jet flight options using Aviapages API."""
     
     def __init__(self):
         self.api_key = AVIAPAGES_API_KEY
         self.villers_jets_url = VILLERS_JETS_AFFILIATE_URL
-        self.villers_affiliate_id = '7275' 
+        self.villers_affiliate_id = '7275'
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
+    
+    def _get_airport_codes(self, location: str) -> list:
+        """
+        Get ALL possible airport codes for a location.
+        Returns list of codes to check (prioritized by private jet usage).
+        """
+        location_lower = location.lower().strip()
         
+        # Multi-airport cities (private jet + commercial with FBOs)
+        airport_mapping = {
+            # NEW ORLEANS - Multiple options
+            "new orleans": ["NEW", "MSY"],  # Lakefront (private), Armstrong (FBO)
+            
+            # NEW YORK - Multiple options
+            "new york": ["TEB", "HPN", "FRG", "JFK", "EWR", "LGA"],
+            "teterboro": ["TEB"],
+            "white plains": ["HPN"],
+            
+            # LOS ANGELES - Multiple options  
+            "los angeles": ["VNY", "BUR", "SMO", "LGB", "LAX"],
+            "van nuys": ["VNY"],
+            "burbank": ["BUR"],
+            "santa monica": ["SMO"],
+            
+            # MIAMI - Multiple options
+            "miami": ["OPF", "FXE", "MIA", "FLL"],
+            "fort lauderdale": ["FXE", "FLL"],
+            
+            # CHICAGO - Multiple options
+            "chicago": ["PWK", "MDW", "ORD"],
+            
+            # DALLAS - Multiple options
+            "dallas": ["ADS", "DAL", "DFW"],
+            "addison": ["ADS"],
+            
+            # ATLANTA - Multiple options
+            "atlanta": ["PDK", "ATL"],
+            
+            # HOUSTON - Multiple options
+            "houston": ["HOU", "IAH"],
+            
+            # LAS VEGAS - Multiple options
+            "las vegas": ["VGT", "LAS", "HND"],
+            "vegas": ["VGT", "LAS"],
+            
+            # PHOENIX/SCOTTSDALE - Multiple options
+            "phoenix": ["SDL", "PHX"],
+            "scottsdale": ["SDL", "PHX"],
+            
+            # SAN FRANCISCO - Multiple options
+            "san francisco": ["SFO", "OAK", "SJC", "HWD"],
+            
+            # WASHINGTON DC - Multiple options
+            "washington": ["IAD", "DCA"],
+            "dc": ["DCA", "IAD"],
+            
+            # BOSTON - Multiple options
+            "boston": ["BED", "BOS"],
+            
+            # DENVER - Multiple options
+            "denver": ["APA", "DEN"],
+            
+            # Single airport cities
+            "san antonio": ["SAT"],
+            "aspen": ["ASE"],
+            "nashville": ["BNA"],
+            "charlotte": ["CLT"],
+            "philadelphia": ["PHL"],
+            "seattle": ["SEA", "BFI"],
+            "orlando": ["MCO", "ISM"],
+            "tampa": ["TPA"],
+            "west palm beach": ["PBI"],
+            "palm beach": ["PBI"],
+            
+            # International
+            "dubai": ["DXB", "DWC"],
+            "london": ["LTN", "FAB", "LHR", "LCY"],
+            "paris": ["LBG", "CDG"],
+            "geneva": ["GVA"],
+            "zurich": ["ZRH"],
+            "nice": ["NCE"],
+            "ibiza": ["IBZ"],
+            "tokyo": ["NRT", "HND"],
+            "hong kong": ["HKG"],
+            "singapore": ["SIN"],
+            "bali": ["DPS"],
+            "cabo": ["SJD"],
+            "cancun": ["CUN"],
+        }
+        
+        # Try exact match first
+        if location_lower in airport_mapping:
+            codes = airport_mapping[location_lower]
+            logger.info(f"Resolved '{location}' to multiple codes: {codes}")
+            return codes
+        
+        # Try partial match
+        for city, codes in airport_mapping.items():
+            if city in location_lower or location_lower in city:
+                logger.info(f"Partially resolved '{location}' to codes: {codes} via '{city}'")
+                return codes
+        
+        # Fallback - single code
+        fallback = location.upper()[:3]
+        logger.warning(f"Could not resolve '{location}', using fallback: [{fallback}]")
+        return [fallback]
     
+    def _get_iata_code(self, location: str) -> str:
+        """
+        Get primary airport code for a location.
+        Returns first (prioritized) code from the list.
+        """
+        codes = self._get_airport_codes(location)
+        return codes[0]
     
+    def format_for_chat(self, flight_data: Dict) -> str:
+        """Format flight results for chat display."""
+        
+        if not flight_data.get("flights"):
+            return f"No flights found from {flight_data['origin']} to {flight_data['destination']}."
+        
+        is_fallback = flight_data.get("is_fallback", False)
+        
+        if is_fallback:
+            output = [
+                f"✈️ Private Jet Charter: {flight_data['origin']} → {flight_data['destination']}\n",
+                "📋 Example Aircraft Available:\n"
+            ]
+        else:
+            output = [
+                f"✈️ Available Private Jets: {flight_data['origin']} → {flight_data['destination']}\n"
+            ]
+        
+        for i, flight in enumerate(flight_data["flights"], 1):
+            price_str = f"${flight['price']:,.0f}" if flight['price'] > 0 else "Request Quote"
+            
+            output.append(
+                f"{i}. {flight['aircraft']}\n"
+                f"   • Type: {flight['aircraft_type']}\n"
+                f"   • Passengers: Up to {flight['passengers']}\n"
+                f"   • Flight Time: {flight['flight_time']}\n"
+                f"   • Price: {price_str}\n"
+            )
+        
+        output.append(
+            f"\n🔗 Get Real-Time Quote & Book:\n"
+            f"{flight_data['affiliate_link']}\n"
+        )
+        
+        output.append("\n💚 Eco-conscious luxury travel with Villers Jets")
+        
+        if flight_data.get("note"):
+            output.append(f"\n{flight_data['note']}")
+        
+        return "\n".join(output)
+
     def search_flights(
         self,
         origin: str,
@@ -240,8 +226,8 @@ class FlightScraper:
         """
         try:
             # Convert locations to airport codes
-            origin_code = self.get_airport_code(origin)
-            dest_code = self.get_airport_code(destination)
+            origin_code = self._get_iata_code(origin)
+            dest_code = self._get_iata_code(destination)
             
             if not origin_code or not dest_code:
                 logger.warning(f"Could not resolve airport codes: {origin} -> {destination}")
@@ -472,37 +458,6 @@ class FlightScraper:
         tracking_params = f"&utm_source=ecofriendly&utm_medium=chatbot&route={origin}-{destination}"
         
         return f"{base_url}{tracking_params}"
-    
-    def format_for_chat(self, flight_data: Dict) -> str:
-        """Format flight results for chat display."""
-        if not flight_data.get("flights"):
-            return f"No flights found from {flight_data['origin']} to {flight_data['destination']}."
-        
-        output = [
-            f"✈️ Private Jet Options: {flight_data['origin']} → {flight_data['destination']}\n"
-        ]
-        
-        for i, flight in enumerate(flight_data["flights"], 1):
-            price_str = f"${flight['price']:,.0f}" if flight['price'] > 0 else "Call for Quote"
-            
-            output.append(
-                f"{i}. {flight['aircraft']}\n"
-                f"   • Type: {flight['aircraft_type']}\n"
-                f"   • Passengers: Up to {flight['passengers']}\n"
-                f"   • Flight Time: {flight['flight_time']}\n"
-                f"   • Price: {price_str}\n"
-                f"   • Operator: {flight['operator']}\n"
-            )
-        
-        output.append(
-            f"\n🔗 Book Now: {flight_data['affiliate_link']}\n"
-            f"\n💚 Experience eco-conscious luxury travel with our partner Villers Jets"
-        )
-        
-        if flight_data.get("note"):
-            output.append(f"\nℹ️ {flight_data['note']}")
-        
-        return "\n".join(output)
     
     def _check_villers_for_route(self, origin: str, destination: str) -> Optional[List[Dict]]:
         """
