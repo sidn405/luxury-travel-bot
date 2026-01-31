@@ -11,7 +11,20 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import json
 
+# ✅ Set up logging properly
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
+
+try:
+    from villers_jets_scraper import VillersJetsScraper
+    VILLERS_SCRAPER_AVAILABLE = True
+    logger.info("✅ Villers Jets scraper available")
+except ImportError:
+    VILLERS_SCRAPER_AVAILABLE = False
+    logger.warning("⚠️ Villers Jets scraper not available")
 
 # Aviapages API Configuration
 AVIAPAGES_API_KEY = os.getenv("AVIAPAGES_API_KEY")
@@ -47,53 +60,7 @@ LUXURY_AIRPORTS = {
     "tokyo": "NRT",
 }
 
-def _fallback_response(self, origin: str, destination: str) -> Dict:
-    """
-    Return fallback response when API fails.
-    Shows generic jets + clear messaging + affiliate link.
-    """
-    logger.info("Using fallback flight response")
-    
-    # Generic luxury jet options (NOT real availability)
-    generic_flights = [
-        {
-            "aircraft": "Gulfstream G650",
-            "aircraft_type": "Heavy Jet",
-            "price": 0,  # Call for quote
-            "currency": "USD",
-            "passengers": 14,
-            "flight_time": "TBD",
-            "operator": "Contact Villers Jets",
-        },
-        {
-            "aircraft": "Bombardier Global 7500",
-            "aircraft_type": "Heavy Jet", 
-            "price": 0,
-            "currency": "USD",
-            "passengers": 19,
-            "flight_time": "TBD",
-            "operator": "Contact Villers Jets",
-        },
-        {
-            "aircraft": "Cessna Citation X",
-            "aircraft_type": "Midsize Jet",
-            "price": 0,
-            "currency": "USD",
-            "passengers": 8,
-            "flight_time": "TBD",
-            "operator": "Contact Villers Jets",
-        },
-    ]
-    
-    return {
-        "origin": origin,
-        "destination": destination,
-        "flights": generic_flights,
-        "affiliate_link": self._build_villers_jets_link(origin, destination),
-        "total_results": len(generic_flights),
-        "note": "⚠️ These are example aircraft types. Contact Villers Jets for real-time availability and pricing on your route.",
-        "is_fallback": True  # Flag to indicate this is not real data
-    }
+
 
 
 def format_for_chat(self, flight_data: Dict) -> str:
@@ -360,6 +327,20 @@ class FlightScraper:
     
     def _fallback_response(self, origin: str, destination: str) -> Dict:
         """Return generic response when API fails (with affiliate link)."""
+        
+        villers_matches = self._check_villers_for_route(origin, destination)
+        if villers_matches:
+            logger.info(f"🔥 Using {len(villers_matches)} empty leg matches from Villers Jets")
+            return {
+                "origin": origin,
+                "destination": destination,
+                "flights": villers_matches,
+                "affiliate_link": self._build_villers_jets_link(origin, destination),
+                "total_results": len(villers_matches),
+                "note": "🔥 Empty leg deals available - Save up to 75%!",
+                "source": "villers_jets_empty_leg_match"
+            }
+            
         logger.info("Using fallback flight response")
         
         # Generic luxury jet options
@@ -443,50 +424,114 @@ class FlightScraper:
         
         return "\n".join(output)
     
-    def search_empty_legs(self, region: Optional[str] = None) -> Dict:
+    def _check_villers_for_route(self, origin: str, destination: str) -> Optional[List[Dict]]:
         """
-        Search for empty leg flights (one-way repositioning flights at discount).
-        Note: Aviapages free tier may not include empty legs endpoint.
-        
-        Args:
-            region: Geographic region (e.g., "US", "Europe", "Global")
-        
-        Returns:
-            Dict with empty leg deals
+        Check if Villers Jets has empty legs matching this route.
+        Returns list of matching flights or None.
         """
+        if not VILLERS_SCRAPER_AVAILABLE:
+            return None
+        
         try:
-            params = {"type": "empty_leg"} if not region else {"type": "empty_leg", "region": region}
-            
-            # Try availabilities endpoint with empty_leg filter
-            response = requests.get(
-                f"{AVIAPAGES_BASE_URL}/availabilities/",
-                headers=self.headers,
-                params=params,
-                timeout=10
+            logger.info(f"🔍 Checking Villers Jets for empty legs on {origin} → {destination}")
+            villers_scraper = VillersJetsScraper(
+                affiliate_id=self.villers_affiliate_id.split('=')[-1] if '=' in self.villers_affiliate_id else '7275'
             )
             
-            if response and response.status_code == 200:
-                data = response.json()
-                return self._format_empty_legs(data)
-            else:
-                # Empty legs might not be available in free tier
-                logger.info("Empty legs not available via API, using fallback")
-                return {
-                    "empty_legs": [], 
-                    "total_deals": 0,
-                    "affiliate_link": VILLERS_JETS_AFFILIATE_URL,
-                    "note": "Empty leg deals available - Contact Villers Jets for current offers. Save up to 75%!"
-                }
+            empty_legs = villers_scraper.scrape_empty_legs()
+            
+            if not empty_legs:
+                return None
+            
+            # Find matching routes
+            matching = []
+            origin_upper = origin.upper()
+            dest_upper = destination.upper()
+            
+            for leg in empty_legs:
+                leg_origin = leg['origin'].upper()
+                leg_dest = leg['destination'].upper()
                 
+                # Check if route matches (with some flexibility)
+                if (origin_upper in leg_origin or leg_origin in origin_upper) and \
+                (dest_upper in leg_dest or leg_dest in dest_upper):
+                    matching.append({
+                        "aircraft": leg['aircraft'],
+                        "aircraft_type": "Private Jet (Empty Leg)",
+                        "price": leg['price'],
+                        "currency": "USD",
+                        "passengers": 8,  # Default estimate
+                        "flight_time": leg['date'],
+                        "operator": "Villers Jets",
+                        "savings": leg['savings'],
+                        "note": f"Save {leg['savings']}% on this empty leg!"
+                    })
+            
+            if matching:
+                logger.info(f"✅ Found {len(matching)} matching empty legs!")
+                return matching
+            
+            return None
+            
         except Exception as e:
-            logger.error(f"Empty leg search error: {e}")
-            return {
-                "empty_legs": [], 
-                "total_deals": 0,
-                "affiliate_link": VILLERS_JETS_AFFILIATE_URL,
-                "note": "Contact Villers Jets for empty leg deals and save up to 75%"
-            }
-    
+            logger.error(f"Error checking Villers for route: {e}")
+            return None
+  
+    def search_empty_legs(self, region: Optional[str] = None) -> Dict:
+        """
+        Search for empty leg deals.
+        Now uses Villers Jets scraper for REAL deals!
+        """
+        logger.info("Searching for empty leg deals...")
+        
+        # Try Villers Jets scraper first for REAL data
+        if VILLERS_SCRAPER_AVAILABLE:
+            try:
+                logger.info("🔍 Using Villers Jets scraper for real empty legs")
+                villers_scraper = VillersJetsScraper(
+                    affiliate_id=self.villers_affiliate_id.split('=')[-1] if '=' in self.villers_affiliate_id else '7275'
+                )
+                
+                empty_legs = villers_scraper.scrape_empty_legs(region)
+                
+                if empty_legs and len(empty_legs) > 0:
+                    logger.info(f"✅ Found {len(empty_legs)} REAL empty legs from Villers Jets!")
+                    
+                    # Format for our response
+                    formatted_legs = []
+                    for leg in empty_legs[:10]:  # Limit to top 10
+                        formatted_legs.append({
+                            "route": leg['route'],
+                            "date": leg['date'],
+                            "aircraft": leg['aircraft'],
+                            "price": leg['price'],
+                            "savings": leg['savings'],
+                            "origin": leg['origin'],
+                            "destination": leg['destination']
+                        })
+                    
+                    return {
+                        "empty_legs": formatted_legs,
+                        "total_deals": len(formatted_legs),
+                        "affiliate_link": self._build_villers_jets_link("", ""),
+                        "note": "🔥 Live empty leg deals from Villers Jets - Save up to 75%!",
+                        "source": "villers_jets_live"
+                    }
+                else:
+                    logger.info("ℹ️ No empty legs found on Villers Jets at this time")
+                    
+            except Exception as e:
+                logger.error(f"❌ Villers scraper error: {e}")
+                logger.exception(e)
+        
+        # Fallback: No real data available
+        logger.info("Using fallback empty legs response")
+        return {
+            "empty_legs": [],
+            "total_deals": 0,
+            "affiliate_link": self._build_villers_jets_link("", ""),
+            "note": "Contact Villers Jets for current empty leg availability"
+        }
     def _format_empty_legs(self, api_data: Dict) -> Dict:
         """Format empty leg results."""
         deals = []
