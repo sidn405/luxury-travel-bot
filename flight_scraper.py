@@ -481,28 +481,50 @@ class FlightScraper:
                 logger.info("No empty legs found on Villers Jets")
                 return None
             
+            # Build expanded code lists with ICAO versions (NEW → KNEW, SAT → KSAT)
+            origin_all_codes = set(origin_codes)
+            for code in origin_codes:
+                if len(code) == 3 and code.isalpha():
+                    origin_all_codes.add('K' + code)  # NEW → KNEW
+            
+            dest_all_codes = set(dest_codes)
+            for code in dest_codes:
+                if len(code) == 3 and code.isalpha():
+                    dest_all_codes.add('K' + code)  # SAT → KSAT
+            
+            logger.info(f"🔍 Expanded search: {origin_all_codes} → {dest_all_codes}")
+            
             # Check all combinations
             matching = []
             for leg in empty_legs:
-                leg_origin = leg['origin'].upper()
-                leg_dest = leg['destination'].upper()
+                leg_origin_iata = leg.get('origin', '').upper()
+                leg_dest_iata = leg.get('destination', '').upper()
+                leg_origin_icao = leg.get('origin_icao', '').upper()
+                leg_dest_icao = leg.get('dest_icao', '').upper()
                 
-                # Check if ANY of our origin codes match AND ANY of our dest codes match
-                origin_match = any(code in leg_origin or leg_origin in code for code in origin_codes)
-                dest_match = any(code in leg_dest or leg_dest in code for code in dest_codes)
+                # Check if ANY code matches (IATA or ICAO)
+                origin_match = (
+                    any(code in leg_origin_iata or leg_origin_iata in code for code in origin_all_codes) or
+                    any(code in leg_origin_icao or leg_origin_icao in code for code in origin_all_codes)
+                )
+                
+                dest_match = (
+                    any(code in leg_dest_iata or leg_dest_iata in code for code in dest_all_codes) or
+                    any(code in leg_dest_icao or leg_dest_icao in code for code in dest_all_codes)
+                )
                 
                 if origin_match and dest_match:
-                    logger.info(f"✅ MATCH FOUND: {leg['route']} matches {origin} → {destination}")
+                    logger.info(f"✅ MATCH FOUND: {leg_origin_icao} → {leg_dest_icao} ({leg_origin_iata} → {leg_dest_iata}) matches {origin} → {destination}")
                     matching.append({
-                        "aircraft": leg['aircraft'],
+                        "aircraft": leg.get('aircraft', 'Private Jet'),
                         "aircraft_type": "Private Jet (Empty Leg)",
-                        "price": leg['price'],
+                        "price": leg.get('price', 0),
                         "currency": "USD",
                         "passengers": 8,
-                        "flight_time": leg['date'],
+                        "flight_time": leg.get('date', 'Available'),
                         "operator": "Villers Jets",
-                        "savings": leg['savings'],
-                        "note": f"🔥 Save {leg['savings']}% on this empty leg!"
+                        "savings": leg.get('savings', 60),
+                        "note": f"🔥 Save {leg.get('savings', 60)}% on this empty leg!"
                     })
             
             if matching:
