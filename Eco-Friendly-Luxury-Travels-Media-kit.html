@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eco Friendly Luxury Travels - Media Kit 2026</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+        
+        .page {
+            width: 210mm;
+            height: 297mm;
+            padding: 40mm;
+            page-break-after: always;
+            position: relative;
+            background: white;
+        }
+        
+        /* Cover Page */
+        .cover {
+            background: linear-gradient(135deg, #004444 0%, #006666 50%, #008080 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 60mm 40mm;
+        }
+        
+        .cover h1 {
+            font-size: 48px;
+            font-weight: 300;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            border-top: 3px solid #deba3a;
+            border-bottom: 3px solid #deba3a;
+            padding: 30px 0;
+        }
+        
+        .cover .subtitle {
+            font-size: 20px;
+            font-weight: 300;
+            margin-bottom: 40px;
+            letter-spacing: 1px;
+        }
+        
+        .cover .logo-placeholder {
+            width: 120px;
+            height: 120px;
+            border: 3px solid #deba3a;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            margin-bottom: 30px;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .cover .year {
+            font-size: 32px;
+            font-weight: 700;
+            color: #deba3a;
+            margin-top: 40px;
+        }
+        
+        /* Header for inner pages */
+        .header {
+            border-bottom: 3px solid #deba3a;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .header h2 {
+            font-size: 32px;
+            color: #004444;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+        
+        /* Content sections */
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section h3 {
+            font-size: 22px;
+            color: #004444;
+            margin-bottom: 15px;
+            border-left: 4px solid #deba3a;
+            padding-left: 15px;
+        }
+        
+        .section p {
+            font-size: 14px;
+            line-height: 1.8;
+            color: #555;
+            margin-bottom: 15px;
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-box {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px;
+            border-left: 4px solid #deba3a;
+            border-radius: 5px;
+        }
+        
+        .stat-number {
+            font-size: 36px;
+            font-weight: 700;
+            color: #004444;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* List styling */
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        ul li {
+            padding: 8px 0 8px 25px;
+            position: relative;
+            font-size: 14px;
+            color: #555;
+        }
+        
+        ul li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #deba3a;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        /* Two column layout */
+        .two-columns {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+        }
+        
+        /* Highlight boxes */
+        .highlight-box {
+            background: linear-gradient(135deg, #004444 0%, #006666 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .highlight-box h4 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #deba3a;
+        }
+        
+        .highlight-box p {
+            color: white;
+            font-size: 13px;
+        }
+        
+        /* Footer */
+        .footer {
+            position: absolute;
+            bottom: 30px;
+            left: 40mm;
+            right: 40mm;
+            text-align: center;
+            font-size: 11px;
+            color: #999;
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+        }
+        
+        /* Partnership table */
+        .partnership-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .partnership-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-left: 3px solid #deba3a;
+            border-radius: 3px;
+        }
+        
+        .partnership-item h5 {
+            font-size: 14px;
+            color: #004444;
+            margin-bottom: 5px;
+        }
+        
+        .partnership-item p {
+            font-size: 12px;
+            color: #666;
+            margin: 0;
+        }
+        
+        /* Contact section */
+        .contact-info {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 30px;
+            border-radius: 5px;
+            margin-top: 30px;
+        }
+        
+        .contact-info h3 {
+            border: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+        
+        .contact-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .contact-label {
+            font-weight: 600;
+            color: #004444;
+            min-width: 120px;
+        }
+        
+        .contact-value {
+            color: #555;
+        }
+        
+        @media print {
+            body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- PAGE 1: COVER -->
+    <div class="page cover">
+        <div class="logo-placeholder">🌿</div>
+        <h1>Eco Friendly<br>Luxury Travels</h1>
+        <div class="subtitle">Media Kit & Partnership Guide</div>
+        <p style="font-size: 16px; max-width: 600px; line-height: 1.8;">
+            Connecting affluent, eco-conscious travelers with sustainable luxury experiences worldwide
+        </p>
+        <div class="year">2026</div>
+    </div>
+
+    <!-- PAGE 2: OVERVIEW & MISSION -->
+    <div class="page">
+        <div class="header">
+            <h2>About Us</h2>
+        </div>
+        
+        <div class="section">
+            <h3>Our Mission</h3>
+            <p>
+                Eco Friendly Luxury Travels is a premium travel blog dedicated to showcasing the finest sustainable luxury experiences around the globe. We bridge the gap between environmental consciousness and high-end travel, proving that luxury and sustainability are not mutually exclusive.
+            </p>
+            <p>
+                Our platform serves as a trusted resource for affluent travelers seeking extraordinary experiences—from private jet charters and luxury yacht rentals to exclusive eco-resorts and boutique sustainable accommodations.
+            </p>
+        </div>
+        
+        <div class="highlight-box">
+            <h4>Why Partner With Us?</h4>
+            <p>
+                Our audience represents the most coveted demographic in luxury travel: high-net-worth individuals actively seeking and booking premium travel experiences. With average reader incomes exceeding $250,000, our platform connects luxury brands with qualified, purchase-ready customers.
+            </p>
+        </div>
+        
+        <div class="section">
+            <h3>Content Focus</h3>
+            <div class="two-columns">
+                <div>
+                    <ul>
+                        <li>Private Aviation & Jet Charters</li>
+                        <li>Luxury Yacht & Boat Rentals</li>
+                        <li>Five-Star Eco-Resorts</li>
+                        <li>Boutique Sustainable Hotels</li>
+                        <li>Exotic Destination Guides</li>
+                    </ul>
+                </div>
+                <div>
+                    <ul>
+                        <li>Premium Ground Transportation</li>
+                        <li>Luxury Wellness Retreats</li>
+                        <li>Exclusive Travel Experiences</li>
+                        <li>Sustainable Luxury Lifestyle</li>
+                        <li>High-End Travel Reviews</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            ecofriendlyluxurytravels.com | Page 1
+        </div>
+    </div>
+
+    <!-- PAGE 3: AUDIENCE DEMOGRAPHICS -->
+    <div class="page">
+        <div class="header">
+            <h2>Audience Demographics</h2>
+        </div>
+        
+        <div class="section">
+            <h3>Who Reads Eco Friendly Luxury Travels</h3>
+            <p>
+                Our readers are sophisticated, environmentally conscious luxury travelers who value quality over quantity. They're decision-makers with significant purchasing power, actively seeking premium travel experiences.
+            </p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-number">$250K+</div>
+                <div class="stat-label">Average Household Income</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">35-65</div>
+                <div class="stat-label">Primary Age Range</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">90%+</div>
+                <div class="stat-label">College Educated</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">Global</div>
+                <div class="stat-label">Geographic Reach</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>Audience Profile</h3>
+            <div class="two-columns">
+                <div>
+                    <h4 style="font-size: 16px; color: #004444; margin-bottom: 10px;">Occupations</h4>
+                    <ul>
+                        <li>C-Suite Executives</li>
+                        <li>Business Owners</li>
+                        <li>Entrepreneurs</li>
+                        <li>Investment Professionals</li>
+                        <li>Medical Professionals</li>
+                        <li>Technology Leaders</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="font-size: 16px; color: #004444; margin-bottom: 10px;">Interests & Values</h4>
+                    <ul>
+                        <li>Sustainable Luxury</li>
+                        <li>Exclusive Experiences</li>
+                        <li>Environmental Responsibility</li>
+                        <li>Privacy & Discretion</li>
+                        <li>Wellness & Self-Care</li>
+                        <li>Cultural Authenticity</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="highlight-box">
+            <h4>Geographic Distribution</h4>
+            <p>
+                Primary Markets: United States, United Kingdom, Canada, Australia, UAE
+                <br>
+                Secondary Markets: Western Europe, Singapore, Hong Kong, Scandinavia
+            </p>
+        </div>
+        
+        <div class="footer">
+            ecofriendlyluxurytravels.com | Page 2
+        </div>
+    </div>
+
+    <!-- PAGE 4: TRAFFIC & ENGAGEMENT -->
+    <div class="page">
+        <div class="header">
+            <h2>Website Statistics & Performance</h2>
+        </div>
+        
+        <div class="section">
+            <h3>Traffic Overview (Last 28 Days)</h3>
+            <p>
+                Our platform attracts a highly engaged audience with exceptional engagement metrics that demonstrate serious purchase intent. Unlike typical blogs, our readers spend significant time researching premium travel options.
+            </p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-number">46.15%</div>
+                <div class="stat-label">Engagement Rate</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">1m 02s</div>
+                <div class="stat-label">Average Session Duration</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">6.32</div>
+                <div class="stat-label">Events Per Active User</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">85%</div>
+                <div class="stat-label">Direct Traffic</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>Top Performing Content</h3>
+            <div class="highlight-box">
+                <h4>Private Jets Section - 3 Minutes 10 Seconds Average Engagement</h4>
+                <p>
+                    Our private aviation content delivers exceptional engagement times, demonstrating that readers are actively researching and comparing options—a clear indicator of purchase intent. This is 3X higher than our site average and significantly above industry standards.
+                </p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>Traffic Sources</h3>
+            <div class="two-columns">
+                <div class="stat-box">
+                    <div class="stat-number">85%</div>
+                    <div class="stat-label">Direct Traffic</div>
+                    <p style="font-size: 12px; margin-top: 10px; color: #666;">
+                        Loyal audience typing URL directly or bookmarked
+                    </p>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">75%</div>
+                    <div class="stat-label">Organic Search Engagement</div>
+                    <p style="font-size: 12px; margin-top: 10px; color: #666;">
+                        Highest engagement rate from search traffic
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>Audience Behavior</h3>
+            <ul>
+                <li><strong>High Purchase Intent:</strong> Extended time on product comparison pages</li>
+                <li><strong>Brand Loyal:</strong> 85% direct traffic indicates strong brand recall</li>
+                <li><strong>Active Engagement:</strong> 6+ interactions per session</li>
+                <li><strong>Quality Over Quantity:</strong> Focused, purchase-ready audience</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            ecofriendlyluxurytravels.com | Page 3
+        </div>
+    </div>
+
+    <!-- PAGE 5: PARTNERSHIP OPPORTUNITIES -->
+    <div class="page">
+        <div class="header">
+            <h2>Partnership Opportunities</h2>
+        </div>
+        
+        <div class="section">
+            <h3>Collaboration Models</h3>
+            <p>
+                We offer flexible partnership opportunities designed to maximize ROI for luxury brands targeting our affluent, eco-conscious audience.
+            </p>
+        </div>
+        
+        <div class="partnership-grid">
+            <div class="partnership-item">
+                <h5>Affiliate Partnerships</h5>
+                <p>Performance-based commission on qualified bookings and purchases (Primary model)</p>
+            </div>
+            <div class="partnership-item">
+                <h5>Sponsored Content</h5>
+                <p>In-depth reviews, destination guides, and experience features</p>
+            </div>
+            <div class="partnership-item">
+                <h5>Product Reviews</h5>
+                <p>Detailed, authentic reviews of luxury travel products and services</p>
+            </div>
+            <div class="partnership-item">
+                <h5>Brand Features</h5>
+                <p>Dedicated articles highlighting unique properties or experiences</p>
+            </div>
+            <div class="partnership-item">
+                <h5>Display Advertising</h5>
+                <p>Premium ad placements on high-traffic pages</p>
+            </div>
+            <div class="partnership-item">
+                <h5>Email Marketing</h5>
+                <p>Newsletter features to engaged subscriber base</p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>Perfect Brand Matches</h3>
+            <div class="two-columns">
+                <div>
+                    <h4 style="font-size: 16px; color: #004444; margin-bottom: 10px;">Travel Services</h4>
+                    <ul>
+                        <li>Private Jet Charter Companies</li>
+                        <li>Luxury Yacht Rentals</li>
+                        <li>Premium Chauffeur Services</li>
+                        <li>Exotic Car Rental Agencies</li>
+                        <li>Helicopter Tour Operators</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="font-size: 16px; color: #004444; margin-bottom: 10px;">Accommodations</h4>
+                    <ul>
+                        <li>Five-Star Hotels & Resorts</li>
+                        <li>Boutique Eco-Lodges</li>
+                        <li>Luxury Villa Rentals</li>
+                        <li>Private Island Retreats</li>
+                        <li>Wellness Resort Chains</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="two-columns">
+                <div>
+                    <h4 style="font-size: 16px; color: #004444; margin-bottom: 10px;">Travel Products</h4>
+                    <ul>
+                        <li>Premium Luggage Brands</li>
+                        <li>High-End Travel Accessories</li>
+                        <li>Luxury Travel Insurance</li>
+                        <li>Premium Credit Cards</li>
+                        <li>Travel Photography Equipment</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 style="font-size: 16px; color: #004444; margin-bottom: 10px;">Experiences</h4>
+                    <ul>
+                        <li>Luxury Safari Operators</li>
+                        <li>Private Tour Companies</li>
+                        <li>Wine & Culinary Tours</li>
+                        <li>Adventure Travel Specialists</li>
+                        <li>Concierge Services</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            ecofriendlyluxurytravels.com | Page 4
+        </div>
+    </div>
+
+    <!-- PAGE 6: CONTACT & NEXT STEPS -->
+    <div class="page">
+        <div class="header">
+            <h2>Let's Work Together</h2>
+        </div>
+        
+        <div class="section">
+            <h3>Why Partner With Eco Friendly Luxury Travels</h3>
+            <div class="highlight-box">
+                <p style="font-size: 15px; line-height: 1.8;">
+                    ✓ Access to high-net-worth, purchase-ready audience<br>
+                    ✓ Exceptional engagement metrics demonstrating intent<br>
+                    ✓ Trusted platform with authentic, quality content<br>
+                    ✓ Performance-based partnerships aligned with ROI<br>
+                    ✓ Sustainable luxury focus attracting conscious consumers<br>
+                    ✓ Flexible collaboration models to fit brand goals
+                </p>
+            </div>
+        </div>
+        
+        <div class="contact-info">
+            <h3>Contact Information</h3>
+            
+            <div class="contact-item">
+                <div class="contact-label">Company:</div>
+                <div class="contact-value">Sidney Muhammad LLC / Eco Friendly Luxury Travels</div>
+            </div>
+            
+            <div class="contact-item">
+                <div class="contact-label">Contact Person:</div>
+                <div class="contact-value">Sidney Muhammad, Founder & Editor</div>
+            </div>
+            
+            <div class="contact-item">
+                <div class="contact-label">Website:</div>
+                <div class="contact-value">ecofriendlyluxurytravels.com</div>
+            </div>
+            
+            <div class="contact-item">
+                <div class="contact-label">Email:</div>
+                <div class="contact-value">info@sidneym.com</div>
+            </div>
+            
+            <div class="contact-item">
+                <div class="contact-label">Location:</div>
+                <div class="contact-value">New Orleans, Louisiana, USA</div>
+            </div>
+            
+            <div class="contact-item">
+                <div class="contact-label">Business Entity:</div>
+                <div class="contact-value">Sidney Muhammad LLC</div>
+            </div>
+        </div>
+        
+        <div class="section" style="margin-top: 40px;">
+            <h3>Next Steps</h3>
+            <p>
+                We're excited to explore partnership opportunities with brands that share our commitment to sustainable luxury and exceptional experiences. 
+            </p>
+            <p style="margin-top: 15px;">
+                <strong>To discuss collaboration opportunities:</strong>
+            </p>
+            <ul style="margin-top: 10px;">
+                <li>Email us with your partnership proposal</li>
+                <li>Include information about your brand and target audience</li>
+                <li>Specify your preferred collaboration model</li>
+                <li>Share your timeline and budget considerations</li>
+            </ul>
+            <p style="margin-top: 20px; font-style: italic; color: #666;">
+                We typically respond to partnership inquiries within 48 hours.
+            </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 50px; padding: 30px; background: linear-gradient(135deg, #004444 0%, #006666 100%); border-radius: 5px;">
+            <h3 style="color: #deba3a; font-size: 24px; margin-bottom: 10px;">
+                Ready to Connect With Luxury Travelers?
+            </h3>
+            <p style="color: white; font-size: 16px;">
+                Let's create an exceptional partnership together.
+            </p>
+        </div>
+        
+        <div class="footer">
+            ecofriendlyluxurytravels.com | Page 5
+        </div>
+    </div>
+</body>
+</html>
