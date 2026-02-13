@@ -1180,24 +1180,52 @@ Use destinations from the affiliate list only. Format exactly like this with cle
 
 
 def create_pdf(content, filename, parameters, doc_type="itinerary"):
-    """Create branded PDF with local banner ads."""
+    """Create branded PDF with local banner ads - ENHANCED ERROR HANDLING"""
     try:
+        logger.info(f"=== PDF CREATION START ===")
+        logger.info(f"Filename: {filename}")
+        logger.info(f"Doc type: {doc_type}")
+        logger.info(f"Parameters: {json.dumps(parameters, indent=2)}")
+        
         pdf_path = os.path.join(STORAGE_DIR, filename)
+        logger.info(f"Full PDF path: {pdf_path}")
+        
+        # Check destination parameter
+        if 'destination' not in parameters:
+            logger.error("❌ 'destination' not in parameters!")
+            return None
+        
+        if not isinstance(parameters['destination'], list):
+            logger.error(f"❌ 'destination' is not a list: {type(parameters['destination'])}")
+            return None
+        
+        if len(parameters['destination']) == 0:
+            logger.error("❌ 'destination' is an empty list!")
+            return None
+        
+        logger.info(f"✅ Destination validated: {parameters['destination']}")
+        
+        # Initialize PDF document
         doc = SimpleDocTemplate(pdf_path, pagesize=letter,
                                topMargin=0.5*inch, bottomMargin=0.5*inch,
                                leftMargin=0.75*inch, rightMargin=0.75*inch)
         story = []
+        logger.info("✅ PDF document initialized")
         
         # Brand title
         story.append(Paragraph(BRAND_NAME, title_style))
         story.append(Spacer(1, 0.1 * inch))
+        logger.info("✅ Brand title added")
         
         # Document title and subtitle
         if doc_type == "itinerary":
             doc_title = "Luxury Travel Itinerary"
             doc_subtitle = f"{', '.join(parameters['destination'])} - {parameters['number_of_days']} Days"
-            # Add 1 banner under title for itineraries
+            logger.info(f"Itinerary subtitle: {doc_subtitle}")
+            
+            # Add banner for itineraries
             banner = BANNER_ADS[0]
+            logger.info(f"Loading banner: {banner['path']}")
             img_data = load_local_image(banner['path'])
             if img_data:
                 from io import BytesIO
@@ -1205,59 +1233,58 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
                 img.hAlign = 'CENTER'
                 story.append(img)
                 story.append(Spacer(1, 0.1 * inch))
-                # Add clickable link text
                 link_para = Paragraph(f'<a href="{banner["link"]}">{banner["alt"]}</a>', 
                                     ParagraphStyle(name='Link', alignment=TA_CENTER, textColor=BRAND_COLOR, fontSize=10))
                 story.append(link_para)
                 story.append(Spacer(1, 0.3 * inch))
+                logger.info("✅ Banner image added")
+            else:
+                logger.warning(f"⚠️ Banner image not loaded (continuing without it)")
         else:
             doc_title = "Luxury Getaway Recommendations"
             
-            # Build descriptive subtitle
             days = parameters.get('number_of_days', 5)
             travelers = parameters.get('family_size', 2)
             activities = parameters.get('preferred_activities', [])
             climate = parameters.get('climate_preferences', '')
             
-            subtitle_parts = []
-            subtitle_parts.append(f"{days}-Day")
-            
+            subtitle_parts = [f"{days}-Day"]
             if climate:
                 subtitle_parts.append(climate.title())
-            
             if activities and isinstance(activities, list):
                 activity_desc = '/'.join(activities[:2]).title()
                 subtitle_parts.append(activity_desc)
-            
             subtitle_parts.append("Getaway")
             subtitle_parts.append(f"for {travelers}")
             
             doc_subtitle = " ".join(subtitle_parts)
+            logger.info(f"Getaway subtitle: {doc_subtitle}")
         
         story.append(Paragraph(doc_title, subtitle_style))
         story.append(Paragraph(doc_subtitle, section_title_style))
         story.append(Spacer(1, 0.2 * inch))
+        logger.info("✅ Title and subtitle added")
         
         # Trip details
         details = f"<b>Budget:</b> {parameters['budget']} | <b>Travelers:</b> {parameters['family_size']}"
         story.append(Paragraph(details, normal_style))
         story.append(Spacer(1, 0.3 * inch))
+        logger.info("✅ Trip details added")
         
-        # Content - for getaways, split by options to insert banners
+        # Content processing
+        logger.info(f"Processing content ({len(content)} chars)...")
+        content_paragraphs = 0
+        
         if doc_type == "getaway":
-            # Split content by options
             sections = re.split(r'(Option \d+:)', content)
             banner_idx = 0
             
             for i, section in enumerate(sections):
                 if section.strip():
-                    # Add text
                     for line in section.split('\n'):
                         if line.strip():
-                            # Clean text safely for PDF
                             line_clean = clean_text_for_pdf(line)
                             
-                            # If line starts with Option, make it bold
                             if line.strip().startswith('Option'):
                                 if '<b>' not in line_clean:
                                     line_clean = f'<b>{line_clean}</b>'
@@ -1265,8 +1292,9 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
                             else:
                                 story.append(Paragraph(line_clean, normal_style))
                             story.append(Spacer(1, 0.08 * inch))
+                            content_paragraphs += 1
                     
-                    # Add banner after each option (3 total for getaways)
+                    # Add banner after each option
                     if 'Option' in section and banner_idx < 3:
                         story.append(Spacer(1, 0.2 * inch))
                         banner = BANNER_ADS[banner_idx % len(BANNER_ADS)]
@@ -1277,21 +1305,18 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
                             img.hAlign = 'CENTER'
                             story.append(img)
                             story.append(Spacer(1, 0.05 * inch))
-                            # Clickable link
                             link_para = Paragraph(f'<a href="{banner["link"]}">{banner["alt"]}</a>', 
                                                 ParagraphStyle(name='Link', alignment=TA_CENTER, textColor=BRAND_COLOR, fontSize=10))
                             story.append(link_para)
                             story.append(Spacer(1, 0.3 * inch))
                         banner_idx += 1
         else:
-            # Itinerary - regular content
+            # Itinerary content
             for line in content.split('\n'):
                 if line.strip():
-                    # Clean text safely for PDF
                     line_clean = clean_text_for_pdf(line)
-                    
-                    # Check if it's a day header
                     original_line = line.strip()
+                    
                     if original_line.startswith('Day ') or original_line.startswith('**Day '):
                         if '<b>' not in line_clean:
                             line_clean = f'<b>{line_clean}</b>'
@@ -1299,33 +1324,31 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
                     else:
                         story.append(Paragraph(line_clean, normal_style))
                     story.append(Spacer(1, 0.08 * inch))
+                    content_paragraphs += 1
+        
+        logger.info(f"✅ Added {content_paragraphs} content paragraphs")
         
         # Booking Links section
         story.append(Spacer(1, 0.3 * inch))
         story.append(Paragraph("<b>Booking Links:</b>", section_title_style))
         story.append(Spacer(1, 0.1 * inch))
         
-        # For getaways, extract destinations from content
+        # Get destinations to link
         if doc_type == "getaway":
-            # Find destinations mentioned in content that match our affiliate links
             all_destinations = get_all_destinations()
             destinations_found = []
             
             for dest in all_destinations:
-                # Check if destination is mentioned in content (case-insensitive)
                 if dest.lower() in content.lower():
                     destinations_found.append(dest)
             
-            # Use found destinations, fallback to parameters if none found
-            if destinations_found:
-                destinations_to_link = destinations_found
-            else:
-                destinations_to_link = parameters['destination'] if parameters.get('destination') else []
+            destinations_to_link = destinations_found if destinations_found else parameters.get('destination', [])
         else:
-            # For itineraries, use parameter destinations
             destinations_to_link = parameters['destination']
         
-        # Add clickable links with hotel names and color
+        logger.info(f"Adding booking links for: {destinations_to_link}")
+        
+        # Add clickable links
         link_style = ParagraphStyle(
             name='BookingLink',
             fontName='Helvetica-Bold',
@@ -1334,24 +1357,37 @@ def create_pdf(content, filename, parameters, doc_type="itinerary"):
             leading=16,
         )
         
+        links_added = 0
         for dest in destinations_to_link:
-            # Get a random hotel for this destination
             hotel_info = get_hotel_for_destination(dest)
             if hotel_info:
                 hotel_name = hotel_info['hotel']
                 link_url = hotel_info['link']
-                
-                # Create link with hotel name
                 link = f'<a href="{link_url}" color="blue"><u>{dest} - {hotel_name} →</u></a>'
                 story.append(Paragraph(link, link_style))
                 story.append(Spacer(1, 0.08 * inch))
+                links_added += 1
+        
+        logger.info(f"✅ Added {links_added} booking links")
         
         # Build PDF
+        logger.info("Building final PDF...")
         doc.build(story)
-        logger.info(f"PDF created: {pdf_path}")
-        return pdf_path
+        logger.info(f"✅ PDF CREATED SUCCESSFULLY: {pdf_path}")
+        
+        # Verify file was created
+        if os.path.exists(pdf_path):
+            size = os.path.getsize(pdf_path)
+            logger.info(f"✅ PDF file verified - Size: {size} bytes")
+            return pdf_path
+        else:
+            logger.error(f"❌ PDF file was not created at {pdf_path}")
+            return None
+            
     except Exception as e:
-        logger.error(f"Error creating PDF: {e}")
+        logger.error(f"❌ ERROR CREATING PDF: {e}")
+        logger.error(f"Error type: {type(e).__name__}")
+        logger.error(f"Error at line: {e.__traceback__.tb_lineno if hasattr(e, '__traceback__') else 'unknown'}")
         logger.exception(e)
         return None
 
@@ -1544,7 +1580,7 @@ def health():
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    """Main chat endpoint - now with flight search!"""
+    """Main chat endpoint - enhanced error handling"""
     try:
         data = request.get_json()
         message = data.get("message", "")
@@ -1552,17 +1588,18 @@ def chat():
         if not message:
             return jsonify({"error": "Message required"}), 400
         
-        logger.info(f"Chat: {message}")
+        logger.info(f"=== NEW CHAT REQUEST ===")
+        logger.info(f"Message: {message}")
         message_lower = message.lower()
         
-        # ⚠️ THIS MUST COME FIRST - CHECK FOR FLIGHTS
+        # Check for flight requests first
         flight_keywords = [
             "private jet", "charter flight", "jet charter", "charter",
-            "flight", "fly", "aircraft", "empty leg", "jet"  # ← "jet" is here
+            "flight", "fly", "aircraft", "empty leg", "jet"
         ]
         
         if any(keyword in message_lower for keyword in flight_keywords):
-            logger.info("✈️ Flight request detected")  # ← Add this for debugging
+            logger.info("✈️ Flight request detected")
             flight_params = extract_flight_parameters(message)
             content = generate_flight_quote(flight_params)
             
@@ -1572,18 +1609,22 @@ def chat():
                 "intent": "flight"
             })
         
-        # Extract standard travel parameters
+        # Extract parameters
+        logger.info("Extracting parameters...")
         parameters = extract_parameters(message)
+        logger.info(f"Extracted parameters: {json.dumps(parameters, indent=2)}")
         
-        # Route to appropriate generator
+        # Determine doc type and generate content
         if any(w in message_lower for w in ["getaway", "vacation", "escape", "weekend"]):
-            content = generate_getaway(parameters)
             doc_type = "getaway"
+            logger.info(f"Generating {doc_type}...")
+            content = generate_getaway(parameters)
         elif any(w in message_lower for w in ["itinerary", "plan", "trip", "schedule", "day-by-day"]):
-            content = generate_itinerary(parameters)
             doc_type = "itinerary"
+            logger.info(f"Generating {doc_type}...")
+            content = generate_itinerary(parameters)
         else:
-            # ⚠️ This default response should only show if NO keywords match
+            logger.info("No specific intent detected - returning greeting")
             return jsonify({
                 "response": (
                     "Hi! I'm Dave from Eco Friendly Luxury Travels. I can:\n\n"
@@ -1595,13 +1636,33 @@ def chat():
                 "parameters": parameters
             })
         
+        # Check if content generation succeeded
         if not content:
-            return jsonify({"error": "Failed to generate content"}), 500
+            logger.error("❌ Content generation returned None!")
+            return jsonify({"error": "Failed to generate content - OpenAI API may be down"}), 500
+        
+        logger.info(f"✅ Content generated successfully ({len(content)} chars)")
+        
+        # Generate filename
+        filename = generate_filename(parameters, doc_type)
+        logger.info(f"Filename: {filename}")
         
         # Create PDF
-        filename = generate_filename(parameters, doc_type)
+        logger.info(f"Creating PDF at: {STORAGE_DIR}/{filename}")
+        logger.info(f"Storage directory exists: {os.path.exists(STORAGE_DIR)}")
+        logger.info(f"Storage directory writable: {os.access(STORAGE_DIR, os.W_OK)}")
+        
         pdf_path = create_pdf(content, filename, parameters, doc_type)
         
+        if pdf_path:
+            logger.info(f"✅ PDF created successfully: {pdf_path}")
+            logger.info(f"PDF file exists: {os.path.exists(pdf_path)}")
+            logger.info(f"PDF file size: {os.path.getsize(pdf_path) if os.path.exists(pdf_path) else 'N/A'} bytes")
+        else:
+            logger.error(f"❌ PDF creation FAILED - create_pdf returned None")
+            logger.error(f"Check logs above for PDF creation error details")
+        
+        # Build response
         response = {
             "response": content,
             "parameters": parameters,
@@ -1611,11 +1672,14 @@ def chat():
         if pdf_path:
             response["pdf_url"] = f"/download/{filename}"
             response["pdf_filename"] = filename
+            logger.info(f"PDF download URL: /download/{filename}")
+        else:
+            logger.warning("⚠️ Returning response WITHOUT PDF")
         
         return jsonify(response)
         
     except Exception as e:
-        logger.error(f"Chat error: {e}")
+        logger.error(f"❌ CHAT ERROR: {e}")
         logger.exception(e)
         return jsonify({"error": str(e)}), 500
 
