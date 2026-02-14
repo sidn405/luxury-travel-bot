@@ -24,7 +24,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Page
 from reportlab.lib.enums import TA_CENTER
 from flight_scraper import FlightScraper
 
-from serpapi import GoogleSearch
 # Setup logging
 env = os.getenv("ENV", "production")
 logging_level = logging.DEBUG if env == "development" else logging.INFO
@@ -1046,344 +1045,27 @@ def get_default_parameters():
         "climate_preferences": None,
         "geography_scenery": None
     }
-    
-# ============================================================================
-# EVENT DETECTION
-# ============================================================================
-
-EVENT_PATTERNS = {
-    'festivals': [
-        'mardi gras', 'carnival', 'oktoberfest', 'coachella', 'burning man',
-        'tomorrowland', 'ultra', 'edinburgh fringe', 'glastonbury', 'bonnaroo'
-    ],
-    'holidays': [
-        'christmas', 'new year', 'easter', 'thanksgiving', 'diwali', 'holi',
-        'chinese new year', 'ramadan', 'hanukah', 'passover'
-    ],
-    'sporting': [
-        'super bowl', 'world cup', 'olympics', 'wimbledon', 'us open',
-        'kentucky derby', 'tour de france', 'monaco grand prix', 'indy 500'
-    ],
-    'cultural': [
-        'cherry blossom', 'running of the bulls', 'la tomatina', 'bastille day',
-        'independence day', 'dia de los muertos', 'st patrick', 'cinco de mayo'
-    ],
-    'arts': [
-        'cannes film festival', 'venice biennale', 'art basel', 'sundance',
-        'fashion week', 'met gala', 'tribeca film'
-    ]
-}
-
-
-def detect_special_events(parameters):
-    """Detect if user is planning around special events."""
-    if not parameters.get('preferred_activities'):
-        return None
-    
-    activities = parameters['preferred_activities']
-    for activity in activities:
-        activity_lower = str(activity).lower()
-        
-        for category, events in EVENT_PATTERNS.items():
-            for event in events:
-                if event in activity_lower:
-                    destination = parameters.get('destination', [''])[0]
-                    travel_dates = parameters.get('travel_dates', '')
-                    
-                    return {
-                        'event': activity,
-                        'event_keyword': event,
-                        'destination': destination,
-                        'travel_dates': travel_dates,
-                        'category': category,
-                        'year': extract_year(travel_dates)
-                    }
-    
-    return None
-
-
-def extract_year(date_string):
-    """Extract year from date string."""
-    if not date_string:
-        return datetime.now().year
-    
-    year_match = re.search(r'20\d{2}', str(date_string))
-    if year_match:
-        return year_match.group()
-    return datetime.now().year
-
-
-# ============================================================================
-# WEB SEARCH INTEGRATION
-# ============================================================================
-
-def build_search_query(event_info):
-    """Build optimized search query for specific event types."""
-    event = event_info['event_keyword']
-    destination = event_info['destination']
-    year = event_info['year']
-    
-    # Event-specific search queries
-    search_templates = {
-        'mardi gras': f"Mardi Gras {destination} {year} parade schedule dates krewes calendar",
-        'carnival': f"Carnival {destination} {year} dates schedule samba parade street parties",
-        'oktoberfest': f"Oktoberfest {destination} {year} dates opening hours beer tents reservations",
-        'christmas': f"Christmas markets {destination} {year} dates locations opening hours",
-        'cherry blossom': f"cherry blossom season {destination} {year} peak bloom dates viewing spots",
-        'running of the bulls': f"Running of the Bulls {destination} {year} dates schedule safety tips",
-        'olympics': f"Olympics {destination} {year} schedule events venues tickets",
-        'world cup': f"World Cup {year} {destination} matches schedule stadiums",
-    }
-    
-    # Check if we have a specific template
-    for keyword, template in search_templates.items():
-        if keyword in event:
-            return template
-    
-    # Generic event search
-    return f"{event} {destination} {year} dates schedule events calendar"
-    
-def format_event_context(search_results, event_info):
-    """
-    Format SerpAPI results into context for OpenAI.
-    
-    Args:
-        search_results (dict): Formatted results from search_for_event_info()
-        event_info (dict): Original event information
-        
-    Returns:
-        str: Formatted context string for OpenAI prompt
-    """
-    if not search_results or not search_results.get('results'):
-        return None
-    
-    # Start building context
-    context_parts = [
-        "═" * 70,
-        "CRITICAL EVENT INFORMATION (Current Web Search - SerpAPI)",
-        "═" * 70,
-        "",
-        f"Event: {event_info['event']}",
-        f"Destination: {event_info['destination']}",
-        f"Year: {event_info['year']}",
-        f"Search Query: {search_results['query']}",
-        "",
-        "CURRENT, ACCURATE INFORMATION:",
-        ""
-    ]
-    
-    # Add featured answer if available (highest priority)
-    if 'featured_answer' in search_results:
-        fa = search_results['featured_answer']
-        context_parts.extend([
-            "📌 FEATURED ANSWER:",
-            f"   {fa.get('answer', fa.get('snippet', ''))}",
-            ""
-        ])
-    
-    # Add knowledge graph if available
-    if 'knowledge_graph' in search_results:
-        kg = search_results['knowledge_graph']
-        if kg.get('description'):
-            context_parts.extend([
-                "📚 KNOWLEDGE GRAPH:",
-                f"   {kg['description']}",
-                ""
-            ])
-    
-    # Add organic search results
-    context_parts.append("🔍 SEARCH RESULTS:")
-    context_parts.append("")
-    
-    for result in search_results['results'][:5]:  # Top 5 results
-        context_parts.extend([
-            f"{result['position']}. {result['title']}",
-            f"   {result['snippet'][:300]}..." if len(result['snippet']) > 300 else f"   {result['snippet']}",
-            f"   Source: {result['displayed_link']}",
-            ""
-        ])
-    
-    # Add instructions for OpenAI
-    context_parts.extend([
-        "═" * 70,
-        "MANDATORY REQUIREMENTS FOR ITINERARY:",
-        "═" * 70,
-        "",
-        "1. Use EXACT dates and times from the search results above",
-        "2. Include ALL events, venues, and activities mentioned",
-        "3. Create detailed day-by-day schedule around these specific events",
-        "4. Include preparation tips and insider information from results",
-        "5. Ensure EVERY DAY has relevant event activities",
-        "6. Reference specific sources when mentioning details",
-        "",
-        f"This is a {event_info.get('category', 'special')} event - make it comprehensive!",
-        ""
-    ])
-    
-    return "\n".join(context_parts)
-
-
-def search_for_event_info(event_info):
-    """
-    Use SerpAPI to get current event information.
-    
-    Args:
-        event_info (dict): Contains event, destination, year, etc.
-        
-    Returns:
-        dict: Formatted search results or None if search fails
-    """
-    try:
-        # Build optimized search query
-        search_query = build_search_query(event_info)
-        logger.info(f"🔍 SerpAPI Search: {search_query}")
-        
-        # Get SerpAPI key from environment
-        serpapi_key = os.getenv("SERPAPI_KEY")
-        if not serpapi_key:
-            logger.error("❌ SERPAPI_KEY not found in environment variables")
-            return None
-        
-        # Execute SerpAPI search
-        search = GoogleSearch({
-            "q": search_query,
-            "api_key": serpapi_key,
-            "num": 6,  # Get top 6 results
-            "gl": "us",  # Country
-            "hl": "en"   # Language
-        })
-        
-        results = search.get_dict()
-        
-        # Check if search was successful
-        if "error" in results:
-            logger.error(f"❌ SerpAPI error: {results['error']}")
-            return None
-        
-        # Extract organic results
-        organic_results = results.get("organic_results", [])
-        
-        if not organic_results:
-            logger.warning(f"⚠️ No results found for: {search_query}")
-            return None
-        
-        logger.info(f"✅ Found {len(organic_results)} results")
-        
-        # Format results for easy consumption
-        formatted_results = {
-            "query": search_query,
-            "event": event_info['event'],
-            "destination": event_info['destination'],
-            "year": event_info['year'],
-            "results": []
-        }
-        
-        # Extract key information from each result
-        for i, result in enumerate(organic_results[:6], 1):
-            formatted_result = {
-                "position": i,
-                "title": result.get("title", ""),
-                "link": result.get("link", ""),
-                "snippet": result.get("snippet", ""),
-                "displayed_link": result.get("displayed_link", "")
-            }
-            formatted_results["results"].append(formatted_result)
-        
-        # Also check for featured snippets (answer boxes)
-        if "answer_box" in results:
-            answer_box = results["answer_box"]
-            formatted_results["featured_answer"] = {
-                "title": answer_box.get("title", ""),
-                "answer": answer_box.get("answer", ""),
-                "snippet": answer_box.get("snippet", "")
-            }
-            logger.info("✅ Found featured answer box")
-        
-        # Check for knowledge graph (common for events)
-        if "knowledge_graph" in results:
-            kg = results["knowledge_graph"]
-            formatted_results["knowledge_graph"] = {
-                "title": kg.get("title", ""),
-                "description": kg.get("description", ""),
-                "attributes": kg.get("attributes", {})
-            }
-            logger.info("✅ Found knowledge graph")
-        
-        return formatted_results
-        
-    except Exception as e:
-        logger.error(f"❌ SerpAPI search error: {e}")
-        logger.exception(e)
-        return None
-
 
 
 def generate_itinerary(parameters):
-    """
-    Generate detailed itinerary with dynamic event detection.
-    UNIVERSAL: Works for any year, any destination, any festival.
-    """
+    """Generate detailed itinerary."""
     try:
-        # Ensure destination is a list
+        # Ensure destination is a list and not empty
         destinations_list = parameters.get("destination", ["Paris"])
         if not destinations_list or not isinstance(destinations_list, list):
             destinations_list = ["Paris"]
         
         destinations = ", ".join(destinations_list)
-        
-        # Step 1: Detect special events
-        event_info = detect_special_events(parameters)
-        
-        event_context = ""
-        if event_info:
-            logger.info(f"🎭 Event detected: {event_info['event']} ({event_info['year']})")
-            
-            # Step 2: Search web for current information
-            search_results = search_for_event_info(event_info)
-            
-            if search_results:
-                # Step 3: Format search results for OpenAI
-                event_context = format_event_context(search_results, event_info)
-                logger.info("✅ Event context retrieved from web search")
-            else:
-                # Fallback: Ask OpenAI to research
-                event_context = f"""
-IMPORTANT: User is traveling for {event_info['event']} in {event_info['year']}.
-
-Research current information and include:
-- EXACT dates for {event_info['event']} in {event_info['year']}
-- Main events, venues, and schedules
-- Best viewing/participation locations
-- Insider tips and local recommendations
-- Day-by-day breakdown of activities
-
-Make this a comprehensive {event_info['event']} experience!
-"""
-                logger.warning("⚠️ Using fallback (search unavailable)")
-        
-        # Build standard sections
-        activities_section = ""
-        if parameters.get('preferred_activities') and not event_info:
-            activities_section = f"Activities: {', '.join(parameters['preferred_activities'])}"
-        
-        climate_section = ""
-        if parameters.get('climate_preferences'):
-            climate_section = f"Climate: {parameters['climate_preferences']}"
-        
-        # Build comprehensive prompt
-        prompt = f"""Create a detailed luxury itinerary for Eco Friendly Luxury Travels:
+        prompt = f"""Create detailed luxury itinerary for Eco Friendly Luxury Travels:
 
 Destination: {destinations}
 Days: {parameters['number_of_days']}
-Dates: {parameters.get('travel_dates', 'Not specified')}
 Budget: {parameters['budget']}
 Travelers: {parameters['family_size']}
-{activities_section}
-{climate_section}
+{f"Activities: {', '.join(parameters['preferred_activities'])}" if parameters.get('preferred_activities') else ""}
+{f"Climate: {parameters['climate_preferences']}" if parameters.get('climate_preferences') else ""}
 
-{event_context}
-
-REQUIREMENTS:
+Include:
 - Day-by-day breakdown with specific times
 - Luxury eco-friendly hotels with exact prices
 - Sustainable fine dining (breakfast/lunch/dinner) with restaurant names
@@ -1394,71 +1076,28 @@ REQUIREMENTS:
 
 Be specific with hotel names, restaurant names, and actual prices."""
         
-        # Adjust token limit for events
-        max_tokens = 4000 if event_context else 3000
-        
-        # Call OpenAI
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers=headers,
             json={
                 "model": "gpt-4",
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": max_tokens,
+                "max_tokens": 3000,
                 "temperature": 0.7,
             },
-            timeout=100
+            timeout=90
         )
         
+        # ADD THIS DEBUG LOGGING:
         logger.info(f"OpenAI Status Code: {response.status_code}")
+        logger.info(f"OpenAI Response: {response.text[:200]}")  # First 200 chars
         
         if response.status_code == 200:
-            content = response.json()["choices"][0]["message"]["content"]
-            logger.info(f"✅ Itinerary generated ({len(content)} chars)")
-            return content
-        else:
-            logger.error(f"❌ OpenAI error: {response.status_code}")
-            return None
-            
-    except Exception as e:
-        logger.error(f"❌ Error generating itinerary: {e}")
-        logger.exception(e)
+            return response.json()["choices"][0]["message"]["content"]
         return None
-    
-def search_and_format_event(event_info):
-    """Search web and format results for OpenAI."""
-    
-    # Build search query
-    event = event_info['event_keyword']
-    destination = event_info['destination']
-    year = event_info['year']
-    
-    search_query = f"{event} {destination} {year} dates schedule events"
-    logger.info(f"🔍 Searching: {search_query}")
-    
-    # OPTION A: Use SerpAPI (recommended)
-    from serpapi import GoogleSearch
-    
-    search = GoogleSearch({
-        "q": search_query,
-        "api_key": os.getenv("SERPAPI_KEY"),  # Add to Railway env vars
-        "num": 5
-    })
-    results = search.get_dict()
-    
-    # Extract snippets
-    snippets = []
-    for result in results.get("organic_results", [])[:5]:
-        snippets.append(f"• {result.get('title')}\n  {result.get('snippet')}")
-    
-    # Format for OpenAI
-    return f"""
-CRITICAL EVENT INFO (Web Search - {year}):
-Event: {event_info['event']}
-{chr(10).join(snippets)}
-
-Use these EXACT dates and schedules. Include all events mentioned above.
-"""
+    except Exception as e:
+        logger.error(f"Error generating itinerary: {e}")
+        return None
 
 
 def generate_getaway(parameters):
