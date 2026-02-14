@@ -1320,36 +1320,48 @@ def search_for_event_info(event_info):
 
 def generate_itinerary(parameters):
     """
-    Generate detailed itinerary with proper family handling and activity focus.
+    Generate detailed itinerary with dynamic event detection.
+    UNIVERSAL: Works for any year, any destination, any festival.
     """
     try:
-        # Setup destinations
+        # Ensure destination is a list
         destinations_list = parameters.get("destination", ["Paris"])
         if not destinations_list or not isinstance(destinations_list, list):
             destinations_list = ["Paris"]
         
         destinations = ", ".join(destinations_list)
         
-        # Detect and search for special events
+        # Step 1: Detect special events
         event_info = detect_special_events(parameters)
         
         event_context = ""
         if event_info:
             logger.info(f"🎭 Event detected: {event_info['event']} ({event_info['year']})")
             
+            # Step 2: Search web for current information
             search_results = search_for_event_info(event_info)
             
             if search_results:
+                # Step 3: Format search results for OpenAI
                 event_context = format_event_context(search_results, event_info)
-                logger.info(f"✅ Event context: {len(event_context)} chars")
+                logger.info("✅ Event context retrieved from web search")
             else:
-                logger.warning("⚠️ Using fallback (search failed)")
+                # Fallback: Ask OpenAI to research
                 event_context = f"""
 IMPORTANT: User is traveling for {event_info['event']} in {event_info['year']}.
-Research and include accurate dates, schedules, and comprehensive event information.
+
+Research current information and include:
+- EXACT dates for {event_info['event']} in {event_info['year']}
+- Main events, venues, and schedules
+- Best viewing/participation locations
+- Insider tips and local recommendations
+- Day-by-day breakdown of activities
+
+Make this a comprehensive {event_info['event']} experience!
 """
+                logger.warning("⚠️ Using fallback (search unavailable)")
         
-        # Build activities section
+        # Build standard sections
         activities_section = ""
         if parameters.get('preferred_activities') and not event_info:
             activities_section = f"Activities: {', '.join(parameters['preferred_activities'])}"
@@ -1358,82 +1370,29 @@ Research and include accurate dates, schedules, and comprehensive event informat
         if parameters.get('climate_preferences'):
             climate_section = f"Climate: {parameters['climate_preferences']}"
         
-        # Determine family size context
-        family_size = parameters.get('family_size', 2)
-        if family_size <= 2:
-            accommodation_note = "2 travelers (likely couple) - 1 room with king/queen bed"
-        elif family_size <= 4:
-            accommodation_note = f"Family of {family_size} - 1 suite OR 1 room with 2 queen beds"
-        elif family_size <= 6:
-            accommodation_note = f"Family of {family_size} - 1 large suite OR 2 connecting rooms maximum"
-        else:
-            accommodation_note = f"Group of {family_size} - 2-3 rooms total (families share rooms)"
-        
         # Build comprehensive prompt
-        prompt = f"""Create a detailed ACTIVITY-FOCUSED luxury itinerary for Eco Friendly Luxury Travels:
+        prompt = f"""Create a detailed luxury itinerary for Eco Friendly Luxury Travels:
 
-TRIP DETAILS:
-- Destination: {destinations}
-- Duration: {parameters['number_of_days']} days
-- Dates: {parameters.get('travel_dates', 'Not specified')}
-- Budget: {parameters['budget']}
-- Travelers: {accommodation_note}
+Destination: {destinations}
+Days: {parameters['number_of_days']}
+Dates: {parameters.get('travel_dates', 'Not specified')}
+Budget: {parameters['budget']}
+Travelers: {parameters['family_size']}
 {activities_section}
 {climate_section}
 
 {event_context}
 
-CRITICAL INSTRUCTIONS:
+REQUIREMENTS:
+- Day-by-day breakdown with specific times
+- Luxury eco-friendly hotels with exact prices
+- Sustainable fine dining (breakfast/lunch/dinner) with restaurant names
+- Exclusive eco-conscious activities
+- Green transportation options
+- Daily cost estimates
+- Sustainability tips
 
-1. ACCOMMODATION HANDLING:
-   - This is an ITINERARY (activity schedule), NOT a hotel booking service
-   - Assume accommodation is ALREADY BOOKED unless specifically requested
-   - ONLY mention a recommended eco-friendly hotel name in Day 1
-   - Do NOT include detailed hotel descriptions, prices, or booking details
-   - Do NOT mention hotels again after Day 1
-   - Focus on ACTIVITIES, DINING, and EXPERIENCES
-
-2. FAMILY ROOM LOGIC:
-   - {accommodation_note}
-   - Calculate costs for ONE accommodation unit, not per person
-   - A family of 4 shares 1 suite, NOT 4 separate rooms
-
-3. DAILY SCHEDULE FORMAT:
-   Each day should include:
-   - Morning: Breakfast location + morning activity
-   - Midday: Lunch location + afternoon activity  
-   - Evening: Dinner location + evening activity/entertainment
-   - Include specific TIMES (8:00 AM, 12:00 PM, 7:00 PM)
-   - Include specific RESTAURANT NAMES and cuisine types
-   - Include specific ACTIVITY NAMES and locations
-   - Include TRANSPORTATION between activities (walk, Uber, streetcar, etc.)
-
-4. SUSTAINABILITY FOCUS:
-   - Recommend restaurants using local, organic ingredients
-   - Suggest eco-friendly transportation (walking, bikes, electric vehicles)
-   - Include green activities (nature tours, eco-museums, parks)
-   - Mention sustainable practices where relevant
-
-5. COST BREAKDOWN:
-   - Daily cost estimates for meals and activities ONLY
-   - Do NOT include accommodation costs (assumed pre-booked)
-   - Transportation costs between venues
-   - Activity/tour admission fees
-   - Total at end of each day
-
-6. RESTAURANT SPECIFICS:
-   - Real restaurant names in {destinations}
-   - Cuisine type and specialties
-   - Approximate cost per person
-   - Why they're sustainable/eco-friendly
-
-7. ACTIVITY SPECIFICS:
-   - Exact activity names and locations
-   - Duration and best times to visit
-   - Why they're unique or eco-conscious
-   - Any advance booking needed
-
-Be specific, accurate, and focus on creating an ACTIONABLE daily schedule, not a hotel catalog!"""
+Be specific with hotel names, restaurant names, and actual prices."""
         
         # Adjust token limit for events
         max_tokens = 4000 if event_context else 3000
